@@ -1,0 +1,6 @@
+# Code Generation Code Only
+
+This directory contains files for generating the demos 
+found in the parent directory. It does not contain 
+functioning samples for Google Wallet, so do not 
+use it as such.
