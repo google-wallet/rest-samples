@@ -83,15 +83,15 @@ Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "name": "<var>name</var>",
+  "name": "name",
   "contactInfo": {
-    "email": "<var>email-address</var>"
+    "email": "email-address"
   }
 }
 # [END createIssuer]
 
 # [START updatePermissions]
-PUT /walletobjects/v1/permissions/<var>issuer-id</var> HTTP/1.1
+PUT /walletobjects/v1/permissions/issuer-id HTTP/1.1
 Host: walletobjects.googleapis.com
 Content-Type: application/json
 Authorization: Bearer <ACCESS_TOKEN>;
@@ -100,11 +100,11 @@ Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "issuerId": "<var>issuer-id</var>",
+  "issuerId": "issuer-id",
   "permissions": [
     {
-      emailAddress = "<var>email-address</var>",
-      role = "<var>READER | WRITER | OWNER</var>"
+      emailAddress = "email-address",
+      role = "READER | WRITER | OWNER"
     }
   ]
 }
