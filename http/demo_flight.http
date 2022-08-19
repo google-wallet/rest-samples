@@ -8,8 +8,8 @@ Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "id": <var>issuer-id</var>.<var>user-id</var>,
-  "classId": <var>issuer-id</var>.<var>class-id</var>,
+  "id": issuer-id.user-id,
+  "classId": issuer-id.class-id,
   "heroImage": {
     "sourceUri": {
       "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",

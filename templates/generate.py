@@ -487,8 +487,8 @@ lang_config = {
   },
   "http": {
     "ext": "http",
-    "class_id": "<var>issuer-id</var>.<var>class-id</var>",
-    "object_id": "<var>issuer-id</var>.<var>user-id</var>",
+    "class_id": "issuer-id.class-id",
+    "object_id": "issuer-id.user-id",
     "filename": lambda s: f"demo_{s.lower()}.http",
   },
 }
