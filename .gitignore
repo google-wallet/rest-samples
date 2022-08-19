@@ -1,5 +1,7 @@
 # OS
 .DS_Store
+.vscode
+*.code-workspace
 
 # Node.js
 node_modules
@@ -17,6 +19,8 @@ local.properties
 # Python
 *.pyc
 __pycache__
+.venv/
+Pipfile.lock
 
 # .NET
 bin

@@ -15,31 +15,61 @@
  */
 
 // [START setup]
+// [START imports]
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import okhttp3.*;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.*;
+import com.google.api.client.http.json.JsonHttpContent;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.common.collect.Lists;
 
 import java.io.FileInputStream;
 import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
+// [END imports]
 
 public class DemoEventticket {
   public static void main(String[] args) throws Exception {
+    /*
+     * keyFilePath - Path to service account key file from Google Cloud Console
+     * - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+     */
+    final String keyFilePath = System.getenv().getOrDefault(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "/path/to/key.json");
 
-    // Path to service account key file obtained from Google CLoud Console.
-    String serviceAccountFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+    /*
+     * issuerId - The issuer ID being updated in this request
+     * - Environment variable: WALLET_ISSUER_ID
+     */
+    String issuerId = System.getenv().getOrDefault(
+        "WALLET_ISSUER_ID",
+        "issuer-id");
 
-    // Issuer ID obtained from Google Pay Business Console.
-    String issuerId = System.getenv("WALLET_ISSUER_ID");
+    /*
+     * classId - Developer-defined ID for the wallet class
+     * - Environment variable: WALLET_CLASS_ID
+     */
+    String classId = System.getenv().getOrDefault(
+        "WALLET_CLASS_ID",
+        "test-eventTicket-class-id");
 
-    // Developer defined ID for the wallet class.
-    String classId = System.getenv("WALLET_CLASS_ID");
+    /*
+     * userId - Developer-defined ID for the user, such as an email address
+     * - Environment variable: WALLET_USER_ID
+     */
+    String userId = System.getenv().getOrDefault(
+        "WALLET_USER_ID",
+        "user-id");
 
-    // Developer defined ID for the user, eg an email address.
-    String userId = System.getenv("WALLET_USER_ID");
-
-    // ID for the wallet object, must be in the form `issuerId.userId` where userId is alphanumeric.
+    /*
+     * objectId - ID for the wallet object
+     * - Format: `issuerId.userId`
+     * - Should only include alphanumeric characters, '.', '_', or '-'
+     */
     String objectId = String.format("%s.%s-%s", issuerId, userId.replaceAll("[^\\w.-]", "_"), classId);
     // [END setup]
 
@@ -48,11 +78,12 @@ public class DemoEventticket {
     ///////////////////////////////////////////////////////////////////////////////
 
     // [START auth]
-    GoogleCredential credential =
-        GoogleCredential.fromStream(new FileInputStream(serviceAccountFile))
-            .createScoped(Collections.singleton("https://www.googleapis.com/auth/wallet_object.issuer"));
-    credential.refreshToken();
-    OkHttpClient httpClient = new OkHttpClient();
+    GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyFilePath))
+        .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/wallet_object.issuer"));
+    credentials.refresh();
+
+    HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+    HttpRequestFactory httpRequestFactory = httpTransport.createRequestFactory();
     // [END auth]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -60,7 +91,7 @@ public class DemoEventticket {
     ///////////////////////////////////////////////////////////////////////////////
 
     // [START class]
-    String classUrl = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketClass/";
+    GenericUrl classUrl = new GenericUrl("https://walletobjects.googleapis.com/walletobjects/v1/eventTicketClass/");
     String classPayload = String.format(
         "{"
       + "  \"id\": \"%s.%s\","
@@ -74,14 +105,14 @@ public class DemoEventticket {
       + "  \"reviewStatus\": \"underReview\""
       + "}", issuerId, classId);
 
-    Request.Builder builder =
-        new Request.Builder()
-            .url(classUrl)
-            .addHeader("Authorization", "Bearer " + credential.getAccessToken());
-    builder.method("POST", RequestBody.create(classPayload, MediaType.get("application/json; charset=utf-8")));
-    try (Response response = httpClient.newCall(builder.build()).execute()) {
-      System.out.println("class POST response:" + Objects.requireNonNull(response.body()).string());
-    }
+    HttpRequest classRequest = httpRequestFactory.buildPostRequest(
+        classUrl,
+        new JsonHttpContent(new GsonFactory(), classPayload));
+    classRequest.setHeaders(new HttpHeaders()
+        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+    HttpResponse classResponse = classRequest.execute();
+
+    System.out.println("class POST response:" + classResponse.parseAsString());
     // [END class]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -89,7 +120,8 @@ public class DemoEventticket {
     ///////////////////////////////////////////////////////////////////////////////
 
     // [START object]
-    String objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketObject/";
+    GenericUrl objectUrl = new GenericUrl(
+        "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketObject/" + objectId);
     String objectPayload = String.format(
         "{"
       + "  \"id\": \"%s\","
@@ -183,29 +215,24 @@ public class DemoEventticket {
       + "    }"
       + "  ]"
       + "}", objectId, issuerId, classId);
-    String output = null;
 
-    builder =
-        new Request.Builder()
-            .url(objectUrl + objectId)
-            .addHeader("Authorization", "Bearer " + credential.getAccessToken())
-            .get();
-    try (Response response = httpClient.newCall(builder.build()).execute()) {
-        if (response.code() != 404) {
-            output = Objects.requireNonNull(response.body()).string();
-        }
+    HttpRequest objectRequest = httpRequestFactory.buildGetRequest(objectUrl);
+    objectRequest.setHeaders(new HttpHeaders()
+        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+    HttpResponse objectResponse = objectRequest.execute();
+
+    if (objectResponse.getStatusCode() == 404) {
+      // Object does not yet exist
+      // Send POST request to create it
+      objectRequest = httpRequestFactory.buildPostRequest(
+          objectUrl,
+          new JsonHttpContent(new GsonFactory(), objectPayload));
+      objectRequest.setHeaders(new HttpHeaders()
+          .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+      objectResponse = objectRequest.execute();
     }
-    if (output == null) {
-        builder =
-            new Request.Builder()
-                .url(objectUrl)
-                .addHeader("Authorization", "Bearer " + credential.getAccessToken());
-        builder.method("POST", RequestBody.create(objectPayload, MediaType.get("application/json; charset=utf-8")));
-        try (Response response = httpClient.newCall(builder.build()).execute()) {
-          output = Objects.requireNonNull(response.body()).string();
-        }
-    }
-    System.out.println("object GET or POST response: " + output);
+
+    System.out.println("object GET or POST response: " + objectResponse.parseAsString());
     // [END object]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -213,25 +240,101 @@ public class DemoEventticket {
     ///////////////////////////////////////////////////////////////////////////////
 
     // [START jwt]
-    Map<String, Object> claims = new HashMap();
-    claims.put("iss", credential.getServiceAccountId()); // `client_email` in service account file.
+    HashMap<String, String> objectIdMap = new HashMap<String, String>();
+    objectIdMap.put("id", objectId);
+
+    HashMap<String, Object> payload = new HashMap<String, Object>();
+    payload.put("eventTicketObjects", new ArrayList<>(Arrays.asList(objectIdMap)));
+
+    HashMap<String, Object> claims = new HashMap<String, Object>();
+    claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
     claims.put("aud", "google");
     claims.put("origins", new ArrayList<>(Arrays.asList("www.example.com")));
     claims.put("typ", "savetowallet");
-
-    Map<String, Object> payload = new HashMap();
-    Map<String, String> objectIdMap = new HashMap();
-    objectIdMap.put("id", objectId);
-    payload.put("eventTicketObjects", new ArrayList<>(Arrays.asList(objectIdMap)));
     claims.put("payload", payload);
 
-    Algorithm algorithm = Algorithm.RSA256(null, (RSAPrivateKey) credential.getServiceAccountPrivateKey());
+    Algorithm algorithm = Algorithm.RSA256(
+        null,
+        (RSAPrivateKey) ((ServiceAccountCredentials) credentials).getPrivateKey());
     String token = JWT.create()
-          .withPayload(claims)
-          .sign(algorithm);
+        .withPayload(claims)
+        .sign(algorithm);
     String saveUrl = "https://pay.google.com/gp/v/save/" + token;
+
     System.out.println(saveUrl);
     // [END jwt]
 
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create a new Google Wallet issuer account
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START createIssuer]
+    // New issuer name
+    final String issuerName = "name";
+
+    // New issuer email address
+    final String issuerEmail = "email-address";
+
+    // Issuer API endpoint
+    GenericUrl issuerUrl = new GenericUrl("https://walletobjects.googleapis.com/walletobjects/v1/issuer");
+
+    // New issuer information
+    HashMap<String, Object> issuerPayload = new HashMap<String, Object>() {
+      {
+        put("name", issuerName);
+        put("contactInfo", new HashMap<String, String>() {
+          {
+            put("email", issuerEmail);
+          }
+        });
+      }
+    };
+
+    HttpRequest issuerRequest = httpRequestFactory.buildPostRequest(
+        issuerUrl,
+        new JsonHttpContent(new GsonFactory(), issuerPayload));
+    issuerRequest.setHeaders(new HttpHeaders()
+        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+    HttpResponse issuerResponse = issuerRequest.execute();
+
+    System.out.println("issuer POST response: " + issuerResponse.parseAsString());
+    // [END createIssuer]
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Update permissions for an existing Google Wallet issuer account
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START updatePermissions]
+    // Permissions API endpoint
+    GenericUrl permissionsUrl = new GenericUrl(
+        "https://walletobjects.googleapis.com/walletobjects/v1/permissions/" + issuerId);
+
+    ArrayList<HashMap<String, String>> permissions = new ArrayList<>();
+
+    // Copy as needed for each email address that will need access
+    permissions.add(new HashMap<String, String>() {
+      {
+        put("emailAddress", "email-address");
+        put("role", "READER | WRITER | OWNER");
+      }
+    });
+
+    // New issuer permissions information
+    HashMap<String, Object> permissionsPayload = new HashMap<String, Object>() {
+      {
+        put("issuerId", issuerId);
+        put("permissions", permissions);
+      }
+    };
+
+    HttpRequest permissionsRequest = httpRequestFactory.buildPutRequest(
+        permissionsUrl,
+        new JsonHttpContent(new GsonFactory(), permissionsPayload));
+    permissionsRequest.setHeaders(new HttpHeaders()
+        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+    HttpResponse permissionsResponse = permissionsRequest.execute();
+
+    System.out.println("permissions PUT response: " + permissionsResponse.parseAsString());
+    // [END updatePermissions]
   }
 }

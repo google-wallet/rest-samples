@@ -17,22 +17,40 @@
 async function main() {
 
   // [START setup]
+  // [START imports]
   const { GoogleAuth } = require('google-auth-library');
   const jwt = require('jsonwebtoken');
+  // [END imports]
 
-  // Path to service account key file obtained from Google CLoud Console.
-  const serviceAccountFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/path/to/key.json';
+  /*
+   * keyFilePath - Path to service account key file from Google Cloud Console
+   *             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+   */
+  const keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/path/to/key.json';
 
-  // Issuer ID obtained from Google Pay Business Console.
-  const issuerId = process.env.WALLET_ISSUER_ID || '<issuer ID>';
+  /*
+   * issuerId - The issuer ID being updated in this request
+   *          - Environment variable: WALLET_ISSUER_ID
+   */
+  const issuerId = process.env.WALLET_ISSUER_ID || 'issuer-id';
 
-  // Developer defined ID for the wallet class.
+  /*
+   * classId - Developer-defined ID for the wallet class
+   *         - Environment variable: WALLET_CLASS_ID
+   */
   const classId = process.env.WALLET_CLASS_ID || 'test-generic-class-id';
 
-  // Developer defined ID for the user, eg an email address.
-  const userId = process.env.WALLET_USER_ID || 'test@example.com';
+  /*
+   * userId - Developer-defined ID for the user, such as an email address
+   *        - Environment variable: WALLET_USER_ID
+   */
+  const userId = process.env.WALLET_USER_ID || 'user-id';
 
-  // ID for the wallet object, must be in the form `issuerId.userId` where userId is alphanumeric.
+  /*
+   * objectId - ID for the wallet object
+   *          - Format: `issuerId.userId`
+   *          - Should only include alphanumeric characters, '.', '_', or '-'
+   */
   const objectId = `${issuerId}.${userId.replace(/[^\w.-]/g, '_')}-${classId}`;
   // [END setup]
 
@@ -41,7 +59,8 @@ async function main() {
   ///////////////////////////////////////////////////////////////////////////////
 
   // [START auth]
-  const credentials = require(serviceAccountFile);
+  const credentials = require(keyFilePath);
+
   const httpClient = new GoogleAuth({
     credentials: credentials,
     scopes: 'https://www.googleapis.com/auth/wallet_object.issuer'
@@ -59,13 +78,13 @@ async function main() {
     "issuerName": "test issuer name"
   };
 
-  let classResponse;
-  try {
-    classResponse = await httpClient.request({url: classUrl, method: 'POST', data: classPayload});
-  } catch (err) {
-    classResponse = err;
-  }
-  console.log('class POST response:', classResponse);
+  let classResponse = await httpClient.request({
+    url: classUrl,
+    method: 'POST',
+    data: classPayload
+  });
+
+  console.log('class POST response: ', classResponse);
   // [END class]
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -147,17 +166,26 @@ async function main() {
     }
   };
 
-  // Retrieve the object, or create it if it doesn't exist.
   let objectResponse;
   try {
-    objectResponse = await httpClient.request({url: objectUrl + objectId, method: 'GET'});
+    objectResponse = await httpClient.request({
+      url: objectUrl + objectId,
+      method: 'GET'
+    });
   } catch (err) {
     if (err.response && err.response.status === 404) {
-      objectResponse = await httpClient.request({url: objectUrl, method: 'POST', data: objectPayload});
+      // Object does not yet exist
+      // Send POST request to create it
+      objectResponse = await httpClient.request({
+        url: objectUrl,
+        method: 'POST',
+        data: objectPayload
+      });
     } else {
       objectResponse = err;
     }
   }
+
   console.log('object GET or POST response:', objectResponse);
   // [END object]
 
@@ -167,20 +195,80 @@ async function main() {
 
   // [START jwt]
   const claims = {
-    iss: credentials.client_email, // `client_email` in service account file.
+    iss: credentials.client_email,
     aud: 'google',
     origins: ['www.example.com'],
     typ: 'savetowallet',
     payload: {
-      genericObjects: [{id: objectId}],
-    },
+      genericObjects: [{
+        id: objectId
+      }],
+    }
   };
 
-  const token = jwt.sign(claims, credentials.private_key, {algorithm: 'RS256'});
+  const token = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
   const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
+
   console.log(saveUrl);
   // [END jwt]
 
-};
+  ///////////////////////////////////////////////////////////////////////////////
+  // Create a new Google Wallet issuer account
+  ///////////////////////////////////////////////////////////////////////////////
 
-main().catch(console.error);
+  // [START createIssuer]
+  // New issuer name
+  const issuerName = "name";
+
+  // New issuer email address
+  const issuerEmail = "email-address";
+
+  // Issuer API endpoint
+  const issuerUrl = "https://walletobjects.googleapis.com/walletobjects/v1/issuer";
+
+  // New issuer information
+  let issuerPayload = {
+    name: issuerName,
+    contactInfo: {
+      email: issuerEmail
+    }
+  };
+
+  let issuerResponse = await httpClient.request({
+    url: issuerUrl,
+    method: 'POST',
+    data: issuerPayload
+  });
+
+  console.log('issuer POST response:', issuerResponse);
+  // [END createIssuer]
+
+  ///////////////////////////////////////////////////////////////////////////////
+  // Update permissions for an existing Google Wallet issuer account
+  ///////////////////////////////////////////////////////////////////////////////
+
+  // [START updatePermissions]
+  // Permissions API endpoint
+  permissionsUrl = `https://walletobjects.googleapis.com/walletobjects/v1/permissions/${issuerId}`;
+
+  // New issuer permissions information
+  permissionsPayload = {
+    issuerId: issuerId,
+    permissions: [
+      // Copy as needed for each email address that will need access
+      {
+        emailAddress: "email-address",
+        role: "READER | WRITER | OWNER"
+      }
+    ]
+  };
+
+  let permissionsResponse = await httpClient.request({
+    url: permissionsUrl,
+    method: 'PUT',
+    data: permissionsPayload
+  });
+
+  console.log('permissions PUT response:', permissionsResponse);
+  // [END updatePermissions]
+};

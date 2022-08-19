@@ -1,0 +1,110 @@
+# [START object]
+POST /walletobjects/v1/flightObject HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "id": <var>issuer-id</var>.<var>user-id</var>,
+  "classId": <var>issuer-id</var>.<var>class-id</var>,
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+      "description": "Test heroImage description"
+    }
+  },
+  "textModulesData": [
+    {
+      "header": "Test text module header",
+      "body": "Test text module body"
+    }
+  ],
+  "linksModuleData": {
+    "uris": [
+      {
+        "kind": "walletobjects#uri",
+        "uri": "http://maps.google.com/",
+        "description": "Test link module uri description"
+      },
+      {
+        "kind": "walletobjects#uri",
+        "uri": "tel:6505555555",
+        "description": "Test link module tel description"
+      }
+    ]
+  },
+  "imageModulesData": [
+    {
+      "mainImage": {
+        "kind": "walletobjects#image",
+        "sourceUri": {
+          "kind": "walletobjects#uri",
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+          "description": "Test image module description"
+        }
+      }
+    }
+  ],
+  "barcode": {
+    "kind": "walletobjects#barcode",
+    "type": "qrCode",
+    "value": "Test QR Code"
+  },
+  "state": "active",
+  "passengerName": "Test passenger name",
+  "reservationInfo": {
+    "confirmationCode": "Test confirmation code"
+  },
+  "boardingAndSeatingInfo": {
+    "seatNumber": "42",
+    "boardingGroup": "B"
+  },
+  "locations": [
+    {
+      "kind": "walletobjects#latLongPoint",
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ]
+}
+# [END object]
+
+# [START createIssuer]
+POST /walletobjects/v1/issuer HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "name": "<var>name</var>",
+  "contactInfo": {
+    "email": "<var>email-address</var>"
+  }
+}
+# [END createIssuer]
+
+# [START updatePermissions]
+PUT /walletobjects/v1/permissions/<var>issuer-id</var> HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "issuerId": "<var>issuer-id</var>",
+  "permissions": [
+    {
+      emailAddress = "<var>email-address</var>",
+      role = "<var>READER | WRITER | OWNER</var>"
+    }
+  ]
+}
+# [END updatePermissions]

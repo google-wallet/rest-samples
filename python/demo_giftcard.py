@@ -16,26 +16,36 @@
 #
 
 # [START setup]
-import os, re, datetime
+# [START imports]
+import os
+import re
 
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 from google.auth import jwt, crypt
+# [END imports]
 
-# Path to service account key file obtained from Google CLoud Console.
-service_account_file = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/key.json")
+# KEY_FILE_PATH - Path to service account key file from Google Cloud Console
+#               - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+KEY_FILE_PATH = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS",
+                               "/path/to/key.json")
 
-# Issuer ID obtained from Google Pay Business Console.
-issuer_id = os.environ.get("WALLET_ISSUER_ID", "<issuer ID>")
+# ISSUER_ID - The issuer ID being updated in this request
+#           - Environment variable: WALLET_ISSUER_ID
+ISSUER_ID = os.environ.get("WALLET_ISSUER_ID", "issuer-id")
 
-# Developer defined ID for the wallet class.
-class_id = os.environ.get("WALLET_CLASS_ID", "test-giftCard-class-id")
+# CLASS_ID - Developer-defined ID for the wallet class
+#         - Environment variable: WALLET_CLASS_ID
+CLASS_ID = os.environ.get("WALLET_CLASS_ID", "test-giftCard-class-id")
 
-# Developer defined ID for the user, eg an email address.
-user_id = os.environ.get("WALLET_USER_ID", "test@example.com")
+# USER_ID - Developer-defined ID for the user, such as an email address
+#        - Environment variable: WALLET_USER_ID
+USER_ID = os.environ.get("WALLET_USER_ID", "test@example.com")
 
-# ID for the wallet object, must be in the form `issuer_id.user_id` where user_id is alphanumeric.
-object_id = "%s.%s-%s" % (issuer_id, re.sub(r"[^\w.-]", "_", user_id), class_id)
+# objectId - ID for the wallet object
+#          - Format: `issuerId.userId`
+#          - Should only include alphanumeric characters, '.', '_', or '-'
+OBJECT_ID = "%s.%s-%s" % (ISSUER_ID, re.sub(r"[^\w.-]", "_", USER_ID), CLASS_ID)
 # [END setup]
 
 ###############################################################################
@@ -43,8 +53,10 @@ object_id = "%s.%s-%s" % (issuer_id, re.sub(r"[^\w.-]", "_", user_id), class_id)
 ###############################################################################
 
 # [START auth]
-credentials = service_account.Credentials.from_service_account_file(service_account_file, 
+credentials = service_account.Credentials.from_service_account_file(
+  KEY_FILE_PATH,
   scopes=["https://www.googleapis.com/auth/wallet_object.issuer"])
+
 http_client = AuthorizedSession(credentials)
 # [END auth]
 
@@ -53,17 +65,20 @@ http_client = AuthorizedSession(credentials)
 ###############################################################################
 
 # [START class]
-class_url = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardClass/"
+CLASS_URL = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardClass/"
 class_payload = {
-  "id": "%s.%s" % (issuer_id, class_id),
+  "id": f"{ISSUER_ID}.{CLASS_ID}",
   "issuerName": "test issuer name",
   "merchantName": "Test merchant name",
   "allowMultipleUsersPerObject": "true",
   "reviewStatus": "underReview"
 }
 
-class_response = http_client.post(class_url, json=class_payload)
-print("class POST response:", class_response.text)
+class_response = http_client.post(
+  CLASS_URL,
+  json=class_payload
+)
+print("class POST response: ", class_response.text)
 # [END class]
 
 ###############################################################################
@@ -71,10 +86,10 @@ print("class POST response:", class_response.text)
 ###############################################################################
 
 # [START object]
-object_url = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardObject/"
+OBJECT_URL = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardObject/"
 object_payload = {
-  "id": object_id,
-  "classId": "%s.%s" % (issuer_id, class_id),
+  "id": OBJECT_ID,
+  "classId": f"{ISSUER_ID}.{CLASS_ID}",
   "heroImage": {
     "sourceUri": {
       "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
@@ -137,10 +152,15 @@ object_payload = {
   ]
 }
 
-# Retrieve the object, or create it if it doesn't exist.
-object_response = http_client.get(object_url + object_id)
+object_response = http_client.get(OBJECT_URL + OBJECT_ID)
 if object_response.status_code == 404:
-  object_response = http_client.post(object_url, json=object_payload)
+  # Object does not yet exist
+  # Send POST request to create it
+  object_response = http_client.post(
+    OBJECT_URL,
+    json=object_payload
+  )
+
 print("object GET or POST response:", object_response.text)
 # [END object]
 
@@ -150,17 +170,81 @@ print("object GET or POST response:", object_response.text)
 
 # [START jwt]
 claims = {
-  "iss": http_client.credentials.service_account_email, # `client_email` in service account file.
+  "iss": http_client.credentials.service_account_email,
   "aud": "google",
   "origins": ["www.example.com"],
   "typ": "savetowallet",
   "payload": {
-    "giftCardObjects": [{"id": object_id}]
+    "giftCardObjects": [
+      {
+        "id": OBJECT_ID
+      }
+    ]
   }
 }
 
-signer = crypt.RSASigner.from_service_account_file(service_account_file)
+signer = crypt.RSASigner.from_service_account_file(KEY_FILE_PATH)
 token = jwt.encode(signer, claims).decode("utf-8")
-save_url = "https://pay.google.com/gp/v/save/%s" % token
+save_url = f"https://pay.google.com/gp/v/save/{token}"
+
 print(save_url)
 # [END jwt]
+
+###############################################################################
+# Create a new Google Wallet issuer account
+###############################################################################
+
+# [START createIssuer]
+# New issuer name
+ISSUER_NAME = "name"
+
+# New issuer email address
+ISSUER_EMAIL = "email-address"
+
+# Issuer API endpoint
+ISSUER_URL = "https://walletobjects.googleapis.com/walletobjects/v1/issuer"
+
+# New issuer information
+issuer_payload = {
+  "name": ISSUER_NAME,
+  "contactInfo": {
+    "email": ISSUER_EMAIL
+  }
+}
+
+# Make the POST request
+issuer_response = http_client.post(
+  url=ISSUER_URL,
+  json=issuer_payload
+)
+
+print("issuer POST response:", issuer_response.text)
+# [END createIssuer]
+
+###############################################################################
+# Update permissions for an existing Google Wallet issuer account
+###############################################################################
+
+# [START updatePermissions]
+# Permissions API endpoint
+permissions_url = f"https://walletobjects.googleapis.com/walletobjects/v1/permissions/{ISSUER_ID}"
+
+# New issuer permissions information
+permissions_payload = {
+  "issuerId": ISSUER_ID,
+  "permissions": [
+    # Copy as needed for each email address that will need access
+    {
+      "emailAddress": "email-address",
+      "role": "READER | WRITER | OWNER"
+    },
+  ]
+}
+
+permissions_response = http_client.put(
+  permissions_url,
+  json=permissions_payload
+)
+
+print("permissions PUT response:", permissions_response.text)
+# [END updatePermissions]
