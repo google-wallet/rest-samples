@@ -1,0 +1,110 @@
+# [START object]
+POST /walletobjects/v1/loyaltyObject HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "id": issuer-id.user-id,
+  "classId": issuer-id.class-id,
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+      "description": "Test heroImage description"
+    }
+  },
+  "textModulesData": [
+    {
+      "header": "Test text module header",
+      "body": "Test text module body"
+    }
+  ],
+  "linksModuleData": {
+    "uris": [
+      {
+        "kind": "walletobjects#uri",
+        "uri": "http://maps.google.com/",
+        "description": "Test link module uri description"
+      },
+      {
+        "kind": "walletobjects#uri",
+        "uri": "tel:6505555555",
+        "description": "Test link module tel description"
+      }
+    ]
+  },
+  "imageModulesData": [
+    {
+      "mainImage": {
+        "kind": "walletobjects#image",
+        "sourceUri": {
+          "kind": "walletobjects#uri",
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+          "description": "Test image module description"
+        }
+      }
+    }
+  ],
+  "barcode": {
+    "kind": "walletobjects#barcode",
+    "type": "qrCode",
+    "value": "Test QR Code"
+  },
+  "state": "active",
+  "accountId": "Test account id",
+  "accountName": "Test account name",
+  "loyaltyPoints": {
+    "balance": {
+      "string": "800"
+    },
+    "label": "Points"
+  },
+  "locations": [
+    {
+      "kind": "walletobjects#latLongPoint",
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ]
+}
+# [END object]
+
+# [START createIssuer]
+POST /walletobjects/v1/issuer HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "name": "name",
+  "contactInfo": {
+    "email": "email-address"
+  }
+}
+# [END createIssuer]
+
+# [START updatePermissions]
+PUT /walletobjects/v1/permissions/issuer-id HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "issuerId": "issuer-id",
+  "permissions": [
+    {
+      emailAddress = "email-address",
+      role = "READER | WRITER | OWNER"
+    }
+  ]
+}
+# [END updatePermissions]

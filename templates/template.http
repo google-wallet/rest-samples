@@ -1,0 +1,48 @@
+# [START object]
+POST /walletobjects/v1/$object_typeObject HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+$object_payload
+# [END object]
+
+# [START createIssuer]
+POST /walletobjects/v1/issuer HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "name": "name",
+  "contactInfo": {
+    "email": "email-address"
+  }
+}
+# [END createIssuer]
+
+# [START updatePermissions]
+PUT /walletobjects/v1/permissions/issuer-id HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <ACCESS_TOKEN>;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "issuerId": "issuer-id",
+  "permissions": [
+    {
+      emailAddress = "email-address",
+      role = "READER | WRITER | OWNER"
+    }
+  ]
+}
+# [END updatePermissions]

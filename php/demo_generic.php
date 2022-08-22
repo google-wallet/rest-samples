@@ -18,26 +18,45 @@
 require __DIR__ . '/vendor/autoload.php';
 
 // [START setup]
+// [START imports]
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Google\Auth\Middleware\AuthTokenMiddleware;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Exception\ClientException;
+// [END imports]
 
-// Path to service account key file obtained from Google CLoud Console.
-$serviceAccountFile = getenv('GOOGLE_APPLICATION_CREDENTIALS') ?: '/path/to/key.json';
 
-// Issuer ID obtained from Google Pay Business Console.
-$issuerId = getenv('WALLET_ISSUER_ID') ?: '<issuer ID>';
+/*
+ * keyFilePath - Path to service account key file from Google Cloud Console
+ *             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+ */
+$keyFilePath = getenv('GOOGLE_APPLICATION_CREDENTIALS') ?: '/path/to/key.json';
 
-// Developer defined ID for the wallet class.
-$classId = getenv('WALLET_CLASS_ID') ?: "test-generic-class-id";
+/*
+ * issuerId - The issuer ID being updated in this request
+ *          - Environment variable: WALLET_ISSUER_ID
+ */
+$issuerId = getenv('WALLET_ISSUER_ID') ?: 'issuer-id';
 
-// Developer defined ID for the user, eg an email address.
-$userId = getenv('WALLET_USER_ID') ?: 'test@example.com';
+/*
+ * classId - Developer-defined ID for the wallet class
+ *         - Environment variable: WALLET_CLASS_ID
+ */
+$classId = getenv('WALLET_CLASS_ID') ?: 'test-generic-class-id';
 
-// ID for the wallet object, must be in the form `issuer_id.user_id` where user_id is alphanumeric.
+/*
+ * userId - Developer-defined ID for the user, such as an email address
+ *        - Environment variable: WALLET_USER_ID
+ */
+$userId = getenv('WALLET_USER_ID') ?: 'user-id';
+
+/*
+ * objectId - ID for the wallet object
+ *          - Format: `issuerId.userId`
+ *          - Should only include alphanumeric characters, '.', '_', or '-'
+ */
 $objectId = "{$issuerId}." . preg_replace('/[^\w.-]/i', '_', $userId) . "-{$classId}";
 // [END setup]
 
@@ -46,11 +65,18 @@ $objectId = "{$issuerId}." . preg_replace('/[^\w.-]/i', '_', $userId) . "-{$clas
 ///////////////////////////////////////////////////////////////////////////////
 
 // [START auth]
-$credentials = new ServiceAccountCredentials('https://www.googleapis.com/auth/wallet_object.issuer', $serviceAccountFile);
-$middleware = new AuthTokenMiddleware($credentials); 
+$credentials = new ServiceAccountCredentials(
+  'https://www.googleapis.com/auth/wallet_object.issuer',
+  $keyFilePath
+);
+
+$middleware = new AuthTokenMiddleware($credentials);
 $stack = HandlerStack::create();
 $stack->push($middleware);
-$httpClient = new Client(['handler' => $stack, 'auth' => 'google_auth']);
+$httpClient = new Client([
+  'handler' => $stack,
+  'auth' => 'google_auth'
+]);
 // [END auth]
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,12 +92,12 @@ $classPayload = <<<EOD
 }
 EOD;
 
-try {
-	$classResponse = $httpClient->post($classUrl, ['json' => json_decode($classPayload)]);
-} catch (ClientException $e) {
-  $classResponse = $e->getResponse();
-}
-echo "class POST response: " . $classResponse->getBody();
+$classResponse = $httpClient->post(
+  $classUrl,
+  ['json' => json_decode($classPayload)]
+);
+
+echo 'class POST response: ' . $classResponse->getBody();
 // [END class]
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -155,16 +181,20 @@ $objectPayload = <<<EOD
 }
 EOD;
 
-// Retrieve the object, or create it if it doesn't exist.
 try {
   $objectResponse = $httpClient->get($objectUrl . $objectId);
-} catch (ClientException $e) {
-  $objectResponse = $e->getResponse();
-  if ($objectResponse->getStatusCode() == 404) {
-    $objectResponse = $httpClient->post($objectUrl, ['json' => json_decode($objectPayload)]);
+} catch (ClientException $err) {
+  if ($err->getResponse()->getStatusCode() == 404) {
+    // Object does not yet exist
+    // Send POST request to create it
+    $objectResponse = $httpClient->post(
+      $objectUrl,
+      ['json' => json_decode($objectPayload)]
+    );
   }
 }
-echo "object GET or POST response: " . $objectResponse->getBody();
+
+echo 'object GET or POST response: ' . $objectResponse->getBody();
 // [END object]
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -172,16 +202,84 @@ echo "object GET or POST response: " . $objectResponse->getBody();
 ///////////////////////////////////////////////////////////////////////////////
 
 // [START jwt]
-$serviceAccount = json_decode(file_get_contents($serviceAccountFile), true);
+$serviceAccount = json_decode(file_get_contents($keyFilePath), true);
 $claims = [
   'iss' => $serviceAccount['client_email'],
   'aud' => 'google',
   'origins' => ['www.example.com'],
   'typ' => 'savetowallet',
-  'payload' => ['genericObjects' => [['id' => $objectId]]]
+  'payload' => [
+    'genericObjects' => [
+      ['id' => $objectId]
+    ]
+  ]
 ];
 
 $token = JWT::encode($claims, $serviceAccount['private_key'], 'RS256');
 $saveUrl = "https://pay.google.com/gp/v/save/${token}";
+
 echo $saveUrl;
 // [END jwt]
+
+///////////////////////////////////////////////////////////////////////////////
+// Create a new Google Wallet issuer account
+///////////////////////////////////////////////////////////////////////////////
+
+// [START createIssuer]
+// New issuer name
+$issuerName = 'name';
+
+// New issuer email address
+$issuerEmail = 'email-address';
+
+// Issuer API endpoint
+$issuerUrl = 'https://walletobjects.googleapis.com/walletobjects/v1/issuer';
+
+// New issuer information
+$issuerPayload = <<<EOD
+{
+  "name": $issuerName,
+  "contactInfo": {
+    "email": $issuerEmail
+  }
+}
+EOD;
+
+$issuerResponse = $httpClient->post(
+  $issuerUrl,
+  ['json' => json_decode($issuerPayload)]
+);
+
+echo 'issuer POST response: ' .  $issuerResponse->getBody();
+// [END createIssuer]
+
+///////////////////////////////////////////////////////////////////////////////
+// Update permissions for an existing Google Wallet issuer account
+///////////////////////////////////////////////////////////////////////////////
+
+// [START updatePermissions]
+// Permissions API endpoint
+$permissionsUrl = "https://walletobjects.googleapis.com/walletobjects/v1/permissions/{$issuerId}";
+
+// New issuer permissions information
+// Copy objects in permissions as needed for each email that will need access
+$permissionsPayload = <<<EOD
+{
+  "issuerId": $issuerId,
+  "permissions": [
+    {
+      "emailAddress": "email-address",
+      "role": "READER | WRITER | OWNER"
+    },
+  ]
+}
+EOD;
+
+# Make the PUT request
+$permissionsResponse = $httpClient->put(
+  $permissionsUrl,
+  ['json' => json_decode($permissionsPayload)]
+);
+
+echo 'permissions PUT response: ' .  $permissionsResponse->getBody();
+// [END updatePermissions]
