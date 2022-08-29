@@ -21,12 +21,15 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.*;
 import com.google.api.client.http.json.JsonHttpContent;
+import com.google.api.client.json.GenericJson;
+import com.google.api.client.json.JsonParser;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.common.collect.Lists;
 
-import java.io.FileInputStream;
+import java.io.*;
 import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
 // [END imports]
@@ -83,7 +86,7 @@ public class DemoOffer {
     credentials.refresh();
 
     HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-    HttpRequestFactory httpRequestFactory = httpTransport.createRequestFactory();
+    HttpRequestFactory httpRequestFactory = httpTransport.createRequestFactory(new HttpCredentialsAdapter(credentials));
     // [END auth]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -102,11 +105,13 @@ public class DemoOffer {
       + "  \"redemptionChannel\": \"online\""
       + "}", issuerId, classId);
 
-    HttpRequest classRequest = httpRequestFactory.buildPostRequest(
-        classUrl,
-        new JsonHttpContent(new GsonFactory(), classPayload));
-    classRequest.setHeaders(new HttpHeaders()
-        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+    // Convert body to JSON
+    JsonParser classParser = GsonFactory.getDefaultInstance().createJsonParser(classPayload);
+    GenericJson classJson = classParser.parseAndClose(GenericJson.class);
+    HttpContent classBody = new JsonHttpContent(GsonFactory.getDefaultInstance(), classJson);
+
+    // Create and send the request
+    HttpRequest classRequest = httpRequestFactory.buildPostRequest(classUrl, classBody);
     HttpResponse classResponse = classRequest.execute();
 
     System.out.println("class POST response:" + classResponse.parseAsString());
@@ -184,19 +189,20 @@ public class DemoOffer {
       + "  ]"
       + "}", objectId, issuerId, classId);
 
+    // Create and send the request
     HttpRequest objectRequest = httpRequestFactory.buildGetRequest(objectUrl);
-    objectRequest.setHeaders(new HttpHeaders()
-        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
     HttpResponse objectResponse = objectRequest.execute();
 
     if (objectResponse.getStatusCode() == 404) {
       // Object does not yet exist
       // Send POST request to create it
-      objectRequest = httpRequestFactory.buildPostRequest(
-          objectUrl,
-          new JsonHttpContent(new GsonFactory(), objectPayload));
-      objectRequest.setHeaders(new HttpHeaders()
-          .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+      // Convert body to JSON
+      JsonParser objectParser = GsonFactory.getDefaultInstance().createJsonParser(objectPayload);
+      GenericJson objectJson = objectParser.parseAndClose(GenericJson.class);
+      HttpContent objectBody = new JsonHttpContent(GsonFactory.getDefaultInstance(), objectJson);
+
+      // Create and send the request
+      objectRequest = httpRequestFactory.buildPostRequest(objectUrl, objectBody);
       objectResponse = objectRequest.execute();
     }
 
@@ -260,9 +266,7 @@ public class DemoOffer {
 
     HttpRequest issuerRequest = httpRequestFactory.buildPostRequest(
         issuerUrl,
-        new JsonHttpContent(new GsonFactory(), issuerPayload));
-    issuerRequest.setHeaders(new HttpHeaders()
-        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
+        new JsonHttpContent(GsonFactory.getDefaultInstance(), issuerPayload));
     HttpResponse issuerResponse = issuerRequest.execute();
 
     System.out.println("issuer POST response: " + issuerResponse.parseAsString());
@@ -298,8 +302,6 @@ public class DemoOffer {
     HttpRequest permissionsRequest = httpRequestFactory.buildPutRequest(
         permissionsUrl,
         new JsonHttpContent(new GsonFactory(), permissionsPayload));
-    permissionsRequest.setHeaders(new HttpHeaders()
-        .setAuthorization("Bearer " + credentials.getAccessToken().getTokenValue()));
     HttpResponse permissionsResponse = permissionsRequest.execute();
 
     System.out.println("permissions PUT response: " + permissionsResponse.parseAsString());
