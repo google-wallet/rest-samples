@@ -20,6 +20,7 @@ async function main() {
   // [START imports]
   const { GoogleAuth } = require('google-auth-library');
   const jwt = require('jsonwebtoken');
+  const { v4: uuidv4 } = require('uuid');
   // [END imports]
 
   /*
@@ -44,14 +45,15 @@ async function main() {
    * userId - Developer-defined ID for the user, such as an email address
    *        - Environment variable: WALLET_USER_ID
    */
-  const userId = process.env.WALLET_USER_ID || 'user-id';
+  let userId = process.env.WALLET_USER_ID || 'user-id';
 
   /*
    * objectId - ID for the wallet object
-   *          - Format: `issuerId.userId`
+   *          - Format: `issuerId.identifier`
    *          - Should only include alphanumeric characters, '.', '_', or '-'
+   *          - `identifier` is developer-defined and unique to the user
    */
-  const objectId = `${issuerId}.${userId.replace(/[^\w.-]/g, '_')}-${classId}`;
+  let objectId = `${issuerId}.${userId.replace(/[^\w.-]/g, '_')}-${classId}`;
   // [END setup]
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -165,8 +167,8 @@ async function main() {
       }
     ]
   };
-
   let objectResponse;
+
   try {
     objectResponse = await httpClient.request({
       url: objectUrl + objectId,
@@ -190,7 +192,7 @@ async function main() {
   // [END object]
 
   ///////////////////////////////////////////////////////////////////////////////
-  // Create a JWT for the object, and encode it to create a "Save" URL.
+  // Create a JWT for the object, and encode it to create a 'Save' URL.
   ///////////////////////////////////////////////////////////////////////////////
 
   // [START jwt]
@@ -218,13 +220,13 @@ async function main() {
 
   // [START createIssuer]
   // New issuer name
-  const issuerName = "name";
+  const issuerName = 'name';
 
   // New issuer email address
-  const issuerEmail = "email-address";
+  const issuerEmail = 'email-address';
 
   // Issuer API endpoint
-  const issuerUrl = "https://walletobjects.googleapis.com/walletobjects/v1/issuer";
+  const issuerUrl = 'https://walletobjects.googleapis.com/walletobjects/v1/issuer';
 
   // New issuer information
   let issuerPayload = {
@@ -257,8 +259,8 @@ async function main() {
     permissions: [
       // Copy as needed for each email address that will need access
       {
-        emailAddress: "email-address",
-        role: "READER | WRITER | OWNER"
+        emailAddress: 'email-address',
+        role: 'READER | WRITER | OWNER'
       }
     ]
   };
@@ -271,4 +273,108 @@ async function main() {
 
   console.log('permissions PUT response:', permissionsResponse);
   // [END updatePermissions]
+
+  ///////////////////////////////////////////////////////////////////////////////
+  // Batch create Google Wallet objects from an existing class
+  ///////////////////////////////////////////////////////////////////////////////
+
+  //[START batch]
+  // The request body will be a multiline string
+  // See below for more information
+  // https://cloud.google.com/compute/docs/api/how-tos/batch#example
+  let data = '';
+  let batchObject;
+
+  // Example: Generate three new pass objects
+  for (let i = 0; i < 3; i++) {
+    // Generate a random user ID
+    userId = uuidv4().replace('[^\\w.-]', '_');
+
+    // Generate an object ID with the user ID
+    objectId = `${issuerId}.${userId}-${classId}`;
+    batchObject = {
+        "id": objectId,
+        "classId": `${issuerId}.${classId}`,
+        "heroImage": {
+          "sourceUri": {
+            "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+            "description": "Test heroImage description"
+          }
+        },
+        "textModulesData": [
+          {
+            "header": "Test text module header",
+            "body": "Test text module body"
+          }
+        ],
+        "linksModuleData": {
+          "uris": [
+            {
+              "kind": "walletobjects#uri",
+              "uri": "http://maps.google.com/",
+              "description": "Test link module uri description"
+            },
+            {
+              "kind": "walletobjects#uri",
+              "uri": "tel:6505555555",
+              "description": "Test link module tel description"
+            }
+          ]
+        },
+        "imageModulesData": [
+          {
+            "mainImage": {
+              "kind": "walletobjects#image",
+              "sourceUri": {
+                "kind": "walletobjects#uri",
+                "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+                "description": "Test image module description"
+              }
+            }
+          }
+        ],
+        "barcode": {
+          "kind": "walletobjects#barcode",
+          "type": "qrCode",
+          "value": "Test QR Code"
+        },
+        "state": "active",
+        "accountId": "Test account id",
+        "accountName": "Test account name",
+        "loyaltyPoints": {
+          "balance": {
+            "string": "800"
+          },
+          "label": "Points"
+        },
+        "locations": [
+          {
+            "kind": "walletobjects#latLongPoint",
+            "latitude": 37.424015499999996,
+            "longitude": -122.09259560000001
+          }
+        ]
+      };
+
+    data += '--batch_createobjectbatch\n';
+    data += 'Content-Type: application/json\n\n';
+    data += 'POST /walletobjects/v1/loyaltyObject/\n\n';
+
+    data += JSON.stringify(batchObject) + '\n\n';
+  }
+  data += '--batch_createobjectbatch--';
+
+  // Invoke the batch API calls
+  let batchResponse = await httpClient.request({
+    url: 'https://walletobjects.googleapis.com/batch',
+    method: 'POST',
+    data: data,
+    headers: {
+      // `boundary` is the delimiter between API calls in the batch request
+      'Content-Type': 'multipart/mixed; boundary=batch_createobjectbatch'
+    }
+  });
+
+  console.log('batch POST response:', batchResponse);
+  // [END batch]
 };

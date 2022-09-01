@@ -17,8 +17,10 @@
 
 # [START setup]
 # [START imports]
+import json
 import os
 import re
+import uuid
 
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
@@ -43,8 +45,9 @@ CLASS_ID = os.environ.get("WALLET_CLASS_ID", "test-eventTicket-class-id")
 USER_ID = os.environ.get("WALLET_USER_ID", "test@example.com")
 
 # objectId - ID for the wallet object
-#          - Format: `issuerId.userId`
+#          - Format: `issuerId.identifier`
 #          - Should only include alphanumeric characters, '.', '_', or '-'
+#          - `identifier` is developer-defined and unique to the user
 OBJECT_ID = "%s.%s-%s" % (ISSUER_ID, re.sub(r"[^\w.-]", "_", USER_ID), CLASS_ID)
 # [END setup]
 
@@ -54,8 +57,8 @@ OBJECT_ID = "%s.%s-%s" % (ISSUER_ID, re.sub(r"[^\w.-]", "_", USER_ID), CLASS_ID)
 
 # [START auth]
 credentials = service_account.Credentials.from_service_account_file(
-  KEY_FILE_PATH,
-  scopes=["https://www.googleapis.com/auth/wallet_object.issuer"])
+    KEY_FILE_PATH,
+    scopes=["https://www.googleapis.com/auth/wallet_object.issuer"])
 
 http_client = AuthorizedSession(credentials)
 # [END auth]
@@ -67,20 +70,20 @@ http_client = AuthorizedSession(credentials)
 # [START class]
 CLASS_URL = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketClass/"
 class_payload = {
-  "id": f"{ISSUER_ID}.{CLASS_ID}",
-  "issuerName": "test issuer name",
-  "eventName": {
-    "defaultValue": {
-      "language": "en-US",
-      "value": "Test event name"
-    }
-  },
-  "reviewStatus": "underReview"
+    "id": f"{ISSUER_ID}.{CLASS_ID}",
+    "issuerName": "test issuer name",
+    "eventName": {
+        "defaultValue": {
+            "language": "en-US",
+            "value": "Test event name"
+        }
+    },
+    "reviewStatus": "underReview"
 }
 
 class_response = http_client.post(
-  CLASS_URL,
-  json=class_payload
+    CLASS_URL,
+    json=class_payload
 )
 print("class POST response: ", class_response.text)
 # [END class]
@@ -92,106 +95,106 @@ print("class POST response: ", class_response.text)
 # [START object]
 OBJECT_URL = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketObject/"
 object_payload = {
-  "id": OBJECT_ID,
-  "classId": f"{ISSUER_ID}.{CLASS_ID}",
-  "heroImage": {
-    "sourceUri": {
-      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-      "description": "Test heroImage description"
-    }
-  },
-  "textModulesData": [
-    {
-      "header": "Test text module header",
-      "body": "Test text module body"
-    }
-  ],
-  "linksModuleData": {
-    "uris": [
-      {
-        "kind": "walletobjects#uri",
-        "uri": "http://maps.google.com/",
-        "description": "Test link module uri description"
-      },
-      {
-        "kind": "walletobjects#uri",
-        "uri": "tel:6505555555",
-        "description": "Test link module tel description"
-      }
-    ]
-  },
-  "imageModulesData": [
-    {
-      "mainImage": {
-        "kind": "walletobjects#image",
+    "id": OBJECT_ID,
+    "classId": f"{ISSUER_ID}.{CLASS_ID}",
+    "heroImage": {
         "sourceUri": {
-          "kind": "walletobjects#uri",
-          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-          "description": "Test image module description"
+            "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+            "description": "Test heroImage description"
         }
-      }
-    }
-  ],
-  "barcode": {
-    "kind": "walletobjects#barcode",
-    "type": "qrCode",
-    "value": "Test QR Code"
-  },
-  "state": "active",
-  "seatInfo": {
-    "kind": "walletobjects#eventSeat",
-    "seat": {
-      "kind": "walletobjects#localizedString",
-      "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
-        "value": "42"
-      }
     },
-    "row": {
-      "kind": "walletobjects#localizedString",
-      "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
-        "value": "G3"
-      }
+    "textModulesData": [
+        {
+            "header": "Test text module header",
+            "body": "Test text module body"
+        }
+    ],
+    "linksModuleData": {
+        "uris": [
+            {
+                "kind": "walletobjects#uri",
+                "uri": "http://maps.google.com/",
+                "description": "Test link module uri description"
+            },
+            {
+                "kind": "walletobjects#uri",
+                "uri": "tel:6505555555",
+                "description": "Test link module tel description"
+            }
+        ]
     },
-    "section": {
-      "kind": "walletobjects#localizedString",
-      "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
-        "value": "5"
-      }
+    "imageModulesData": [
+        {
+            "mainImage": {
+                "kind": "walletobjects#image",
+                "sourceUri": {
+                    "kind": "walletobjects#uri",
+                    "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+                    "description": "Test image module description"
+                }
+            }
+        }
+    ],
+    "barcode": {
+        "kind": "walletobjects#barcode",
+        "type": "qrCode",
+        "value": "Test QR Code"
     },
-    "gate": {
-      "kind": "walletobjects#localizedString",
-      "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
-        "value": "A"
-      }
-    }
-  },
-  "ticketHolderName": "Test ticket holder name",
-  "ticketNumber": "Test ticket number",
-  "locations": [
-    {
-      "kind": "walletobjects#latLongPoint",
-      "latitude": 37.424015499999996,
-      "longitude": -122.09259560000001
-    }
-  ]
+    "state": "active",
+    "seatInfo": {
+        "kind": "walletobjects#eventSeat",
+        "seat": {
+            "kind": "walletobjects#localizedString",
+            "defaultValue": {
+                "kind": "walletobjects#translatedString",
+                "language": "en-us",
+                "value": "42"
+            }
+        },
+        "row": {
+            "kind": "walletobjects#localizedString",
+            "defaultValue": {
+                "kind": "walletobjects#translatedString",
+                "language": "en-us",
+                "value": "G3"
+            }
+        },
+        "section": {
+            "kind": "walletobjects#localizedString",
+            "defaultValue": {
+                "kind": "walletobjects#translatedString",
+                "language": "en-us",
+                "value": "5"
+            }
+        },
+        "gate": {
+            "kind": "walletobjects#localizedString",
+            "defaultValue": {
+                "kind": "walletobjects#translatedString",
+                "language": "en-us",
+                "value": "A"
+            }
+        }
+    },
+    "ticketHolderName": "Test ticket holder name",
+    "ticketNumber": "Test ticket number",
+    "locations": [
+        {
+            "kind": "walletobjects#latLongPoint",
+            "latitude": 37.424015499999996,
+            "longitude": -122.09259560000001
+        }
+    ]
 }
 
 object_response = http_client.get(OBJECT_URL + OBJECT_ID)
 if object_response.status_code == 404:
-  # Object does not yet exist
-  # Send POST request to create it
-  object_response = http_client.post(
-    OBJECT_URL,
-    json=object_payload
-  )
+    # Object does not yet exist
+    # Send POST request to create it
+    object_response = http_client.post(
+        OBJECT_URL,
+        json=object_payload
+    )
 
 print("object GET or POST response:", object_response.text)
 # [END object]
@@ -202,17 +205,17 @@ print("object GET or POST response:", object_response.text)
 
 # [START jwt]
 claims = {
-  "iss": http_client.credentials.service_account_email,
-  "aud": "google",
-  "origins": ["www.example.com"],
-  "typ": "savetowallet",
-  "payload": {
-    "eventTicketObjects": [
-      {
-        "id": OBJECT_ID
-      }
-    ]
-  }
+    "iss": http_client.credentials.service_account_email,
+    "aud": "google",
+    "origins": ["www.example.com"],
+    "typ": "savetowallet",
+    "payload": {
+        "eventTicketObjects": [
+            {
+                "id": OBJECT_ID
+            }
+        ]
+    }
 }
 
 signer = crypt.RSASigner.from_service_account_file(KEY_FILE_PATH)
@@ -238,16 +241,16 @@ ISSUER_URL = "https://walletobjects.googleapis.com/walletobjects/v1/issuer"
 
 # New issuer information
 issuer_payload = {
-  "name": ISSUER_NAME,
-  "contactInfo": {
-    "email": ISSUER_EMAIL
-  }
+    "name": ISSUER_NAME,
+    "contactInfo": {
+        "email": ISSUER_EMAIL
+    }
 }
 
 # Make the POST request
 issuer_response = http_client.post(
-  url=ISSUER_URL,
-  json=issuer_payload
+    url=ISSUER_URL,
+    json=issuer_payload
 )
 
 print("issuer POST response:", issuer_response.text)
@@ -263,20 +266,150 @@ permissions_url = f"https://walletobjects.googleapis.com/walletobjects/v1/permis
 
 # New issuer permissions information
 permissions_payload = {
-  "issuerId": ISSUER_ID,
-  "permissions": [
-    # Copy as needed for each email address that will need access
-    {
-      "emailAddress": "email-address",
-      "role": "READER | WRITER | OWNER"
-    },
-  ]
+    "issuerId": ISSUER_ID,
+    "permissions": [
+        # Copy as needed for each email address that will need access
+        {
+            "emailAddress": "email-address",
+            "role": "READER | WRITER | OWNER"
+        },
+    ]
 }
 
 permissions_response = http_client.put(
-  permissions_url,
-  json=permissions_payload
+    permissions_url,
+    json=permissions_payload
 )
 
 print("permissions PUT response:", permissions_response.text)
 # [END updatePermissions]
+
+###############################################################################
+# Batch create Google Wallet objects from an existing class
+###############################################################################
+
+# [START batch]
+# The request body will be a multiline string
+# See below for more information
+# https://cloud.google.com/compute/docs/api/how-tos/batch#example
+data = ""
+
+# Example: Generate three new pass objects
+for _ in range(3):
+    # Generate a random user ID
+    USER_ID = str(uuid.uuid4()).replace("[^\\w.-]", "_")
+
+    # Generate an object ID with the user ID
+    OBJECT_ID = f"{ISSUER_ID}.{USER_ID}-{CLASS_ID}"
+    BATCH_OBJECT = {
+        "id": OBJECT_ID,
+        "classId": f"{ISSUER_ID}.{CLASS_ID}",
+        "heroImage": {
+            "sourceUri": {
+                "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+                "description": "Test heroImage description"
+            }
+        },
+        "textModulesData": [
+            {
+                "header": "Test text module header",
+                "body": "Test text module body"
+            }
+        ],
+        "linksModuleData": {
+            "uris": [
+                {
+                    "kind": "walletobjects#uri",
+                    "uri": "http://maps.google.com/",
+                    "description": "Test link module uri description"
+                },
+                {
+                    "kind": "walletobjects#uri",
+                    "uri": "tel:6505555555",
+                    "description": "Test link module tel description"
+                }
+            ]
+        },
+        "imageModulesData": [
+            {
+                "mainImage": {
+                    "kind": "walletobjects#image",
+                    "sourceUri": {
+                        "kind": "walletobjects#uri",
+                        "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+                        "description": "Test image module description"
+                    }
+                }
+            }
+        ],
+        "barcode": {
+            "kind": "walletobjects#barcode",
+            "type": "qrCode",
+            "value": "Test QR Code"
+        },
+        "state": "active",
+        "seatInfo": {
+            "kind": "walletobjects#eventSeat",
+            "seat": {
+                "kind": "walletobjects#localizedString",
+                "defaultValue": {
+                    "kind": "walletobjects#translatedString",
+                    "language": "en-us",
+                    "value": "42"
+                }
+            },
+            "row": {
+                "kind": "walletobjects#localizedString",
+                "defaultValue": {
+                    "kind": "walletobjects#translatedString",
+                    "language": "en-us",
+                    "value": "G3"
+                }
+            },
+            "section": {
+                "kind": "walletobjects#localizedString",
+                "defaultValue": {
+                    "kind": "walletobjects#translatedString",
+                    "language": "en-us",
+                    "value": "5"
+                }
+            },
+            "gate": {
+                "kind": "walletobjects#localizedString",
+                "defaultValue": {
+                    "kind": "walletobjects#translatedString",
+                    "language": "en-us",
+                    "value": "A"
+                }
+            }
+        },
+        "ticketHolderName": "Test ticket holder name",
+        "ticketNumber": "Test ticket number",
+        "locations": [
+            {
+                "kind": "walletobjects#latLongPoint",
+                "latitude": 37.424015499999996,
+                "longitude": -122.09259560000001
+            }
+        ]
+    }
+
+    data += "--batch_createobjectbatch\n"
+    data += "Content-Type: application/json\n\n"
+    data += "POST /walletobjects/v1/eventTicketObject/\n\n"
+
+    data += json.dumps(BATCH_OBJECT) + "\n\n"
+
+data += "--batch_createobjectbatch--"
+
+# Invoke the batch API calls
+response = http_client.post(
+    "https://walletobjects.googleapis.com/batch",
+    data=data,
+    headers={
+        # `boundary` is the delimiter between API calls in the batch request
+        "Content-Type": "multipart/mixed; boundary=batch_createobjectbatch"
+    })
+
+print(response.content.decode("UTF-8"))
+# [END batch]
