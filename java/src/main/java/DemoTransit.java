@@ -18,7 +18,10 @@
 // [START imports]
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.*;
 import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.GenericJson;
@@ -32,6 +35,11 @@ import com.google.common.collect.Lists;
 import java.io.*;
 import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
+
+// Only include if you are using the Google Wallet client library
+// https://developers.google.com/wallet/retail/loyalty-cards/resources/libraries
+import com.google.api.services.walletobjects.Walletobjects;
+import com.google.api.services.walletobjects.model.*;
 // [END imports]
 
 public class DemoTransit {
@@ -70,10 +78,12 @@ public class DemoTransit {
 
     /*
      * objectId - ID for the wallet object
-     * - Format: `issuerId.userId`
+     * - Format: `issuerId.identifier`
      * - Should only include alphanumeric characters, '.', '_', or '-'
+     * - `identifier` is developer-defined and unique to the user
      */
-    String objectId = String.format("%s.%s-%s", issuerId, userId.replaceAll("[^\\w.-]", "_"), classId);
+    String objectId = String.format("%s.%s-%s",
+        issuerId, userId.replaceAll("[^\\w.-]", "_"), classId);
     // [END setup]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -351,10 +361,74 @@ public class DemoTransit {
 
     HttpRequest permissionsRequest = httpRequestFactory.buildPutRequest(
         permissionsUrl,
-        new JsonHttpContent(new GsonFactory(), permissionsPayload));
+        new JsonHttpContent(GsonFactory.getDefaultInstance(), permissionsPayload));
     HttpResponse permissionsResponse = permissionsRequest.execute();
 
     System.out.println("permissions PUT response: " + permissionsResponse.parseAsString());
     // [END updatePermissions]
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Batch create Google Wallet objects
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START batch]
+    // Note: This example requires version 1.23 or higher of the
+    // `com.google.api-client` library.
+    // https://developers.google.com/api-client-library/java
+    try {
+      HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+
+      // Create the Wallet API client
+      Walletobjects client = new Walletobjects.Builder(
+          httpTransport,
+          GsonFactory.getDefaultInstance(),
+          requestInitializer)
+          .setApplicationName("APPLICATION_NAME")
+          .build();
+
+      // Create the batch request client
+      BatchRequest batch = client.batch(requestInitializer);
+
+      // The callback will be invoked for each request in the batch
+      JsonBatchCallback<TransitObject> callback = new JsonBatchCallback<TransitObject>() {
+        // Invoked if the request was successful
+        public void onSuccess(TransitObject response, HttpHeaders responseHeaders) {
+          System.out.println(response.toString());
+        }
+
+        // Invoked if the request failed
+        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
+          System.out.println("Error Message: " + e.getMessage());
+        }
+      };
+
+      // Example: Generate three new pass objects
+      for (int i = 0; i < 3; i++) {
+        // Generate a random user ID
+        userId = UUID.randomUUID()
+            .toString()
+            .replaceAll("[^\\w.-]", "_");
+
+        // Generate a random object ID with the user ID
+        objectId =  String.format("%s.%s-%s", issuerId, userId, classId);
+
+        TransitObject transitObject = new TransitObject()
+            // See link below for more information on required properties
+            // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
+            .setId(objectId)
+            .setClassId(classId)
+            .setState("ACTIVE")
+            .setTripType("ONE_WAY");;
+
+        client.transitobject().insert(transitObject).queue(batch, callback);
+      }
+
+      // Invoke the batch API calls
+      batch.execute();
+    } catch (Exception e) {
+      System.out.println("Error : " + e.getMessage());
+      e.printStackTrace();
+    }
+    // [END batch]
   }
 }

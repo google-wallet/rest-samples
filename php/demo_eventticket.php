@@ -22,6 +22,7 @@ require __DIR__ . '/vendor/autoload.php';
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Google\Auth\Middleware\AuthTokenMiddleware;
+use Google\Client as Google_Client;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Exception\ClientException;
@@ -54,8 +55,9 @@ $userId = getenv('WALLET_USER_ID') ?: 'user-id';
 
 /*
  * objectId - ID for the wallet object
- *          - Format: `issuerId.userId`
+ *          - Format: `issuerId.identifier`
  *          - Should only include alphanumeric characters, '.', '_', or '-'
+ *          - `identifier` is developer-defined and unique to the user
  */
 $objectId = "{$issuerId}." . preg_replace('/[^\w.-]/i', '_', $userId) . "-{$classId}";
 // [END setup]
@@ -310,3 +312,47 @@ $permissionsResponse = $httpClient->put(
 
 echo 'permissions PUT response: ' .  $permissionsResponse->getBody();
 // [END updatePermissions]
+
+///////////////////////////////////////////////////////////////////////////////
+// Batch create Google Wallet objects from an existing class
+///////////////////////////////////////////////////////////////////////////////
+
+//[START batch]
+// Download the PHP client library from the following URL
+// https://developers.google.com/wallet/generic/resources/libraries
+require __DIR__ . '/lib/Walletobjects.php';
+
+// The request body will be a multiline string
+// See below for more information
+// https://cloud.google.com/compute/docs/api/how-tos/batch#example
+$client = new Google_Client();
+$client->setApplicationName("APPLICATION_NAME");
+$client->setScopes("https://www.googleapis.com/auth/wallet_object.issuer");
+$client->setAuthConfig($keyFilePath);
+$client->setUseBatch(true);
+
+$service = new Google_Service_Walletobjects($client);
+
+$batch = $service->createBatch();
+
+// Example: Generate three new pass objects
+for ($i = 0; $i < 3; $i++) {
+  // Generate a random user ID
+  $userId = str_replace("[^\\w.-]", "_", uniqid());
+
+  // Generate a random object ID with the user ID
+  $objectId = "$issuerId.$userId-$classId";
+
+  $eventTicketObject = new Google_Service_Walletobjects_EventTicketObject();
+  // See link below for more information on required properties
+  // https://developers.google.com/wallet/tickets/events/rest/v1/eventticketobject
+  $eventTicketObject->setId($objectId);
+  $eventTicketObject->setClassId("$issuerId.$classId");
+  $eventTicketObject->setState("ACTIVE");
+
+  $batch->add($service->eventticketobject->insert($eventTicketObject));
+}
+$results = $batch->execute();
+
+print_r($results);
+// [END batch]

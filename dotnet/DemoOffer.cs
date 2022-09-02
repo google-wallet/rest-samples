@@ -25,35 +25,37 @@ using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 // [END imports]
 
+
 /*
- * keyFilePath - Path to service account key file from Google Cloud Console
- *             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
- */
+* keyFilePath - Path to service account key file from Google Cloud Console
+*             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+*/
 string keyFilePath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS") ?? "/path/to/key.json";
 
 /*
- * issuerId - The issuer ID being used in this request
- *          - Environment variable: WALLET_ISSUER_ID
- */
+* issuerId - The issuer ID being used in this request
+*          - Environment variable: WALLET_ISSUER_ID
+*/
 string issuerId = Environment.GetEnvironmentVariable("WALLET_ISSUER_ID") ?? "issuer-id";
 
 /*
- * classId - Developer-defined ID for the wallet class
- *         - Environment variable: WALLET_CLASS_ID
- */
+* classId - Developer-defined ID for the wallet class
+*         - Environment variable: WALLET_CLASS_ID
+*/
 string classId = Environment.GetEnvironmentVariable("WALLET_CLASS_ID") ?? "test-offer-class-id";
 
 /*
- * userId - Developer-defined ID for the user, such as an email address
- *        - Environment variable: WALLET_USER_ID
- */
+* userId - Developer-defined ID for the user, such as an email address
+*        - Environment variable: WALLET_USER_ID
+*/
 string userId = Environment.GetEnvironmentVariable("WALLET_USER_ID") ?? "user-id";
 
 /*
- * objectId - ID for the wallet object
- *          - Format: `issuerId.userId`
- *          - Should only include alphanumeric characters, '.', '_', or '-'
- */
+* objectId - ID for the wallet object
+*          - Format: `issuerId.identifier`
+*          - Should only include alphanumeric characters, '.', '_', or '-'
+*          - `identifier` is developer-defined and unique to the user
+*/
 string objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
 // [END setup]
 
@@ -62,14 +64,14 @@ string objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Rep
 ///////////////////////////////////////////////////////////////////////////////
 
 // [START auth]
-var credentials = (ServiceAccountCredential)GoogleCredential.FromFile(keyFilePath)
-  .CreateScoped(new[] { "https://www.googleapis.com/auth/wallet_object.issuer" })
-  .UnderlyingCredential;
+ServiceAccountCredential credentials = (ServiceAccountCredential)GoogleCredential.FromFile(keyFilePath)
+    .CreateScoped(new[] { "https://www.googleapis.com/auth/wallet_object.issuer" })
+    .UnderlyingCredential;
 
-var httpClient = new HttpClient();
+HttpClient httpClient = new HttpClient();
 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-  "Bearer",
-  await credentials.GetAccessTokenForRequestAsync()
+    "Bearer",
+    await credentials.GetAccessTokenForRequestAsync()
 );
 // [END auth]
 
@@ -91,7 +93,7 @@ var classPayload = new
 
 HttpRequestMessage classRequest = new HttpRequestMessage(HttpMethod.Post, classUrl);
 classRequest.Content = new StringContent(JsonConvert.SerializeObject(classPayload));
-HttpResponseMessage classResponse = httpClient.Send(classRequest); ;
+HttpResponseMessage classResponse = httpClient.Send(classRequest);
 
 string classContent = await classResponse.Content.ReadAsStringAsync();
 
@@ -228,6 +230,7 @@ SigningCredentials signingCredentials = new SigningCredentials(key, SecurityAlgo
 JwtSecurityToken jwt = new JwtSecurityToken(new JwtHeader(signingCredentials), claims);
 string token = new JwtSecurityTokenHandler().WriteToken(jwt);
 string saveUrl = $"https://pay.google.com/gp/v/save/{token}";
+
 Console.WriteLine(saveUrl);
 // [END jwt]
 
@@ -291,3 +294,130 @@ HttpResponseMessage permissionsResponse = httpClient.Send(permissionsRequest);
 
 Console.WriteLine($"permissions PUT response: {await permissionsResponse.Content.ReadAsStringAsync()}");
 // [END updatePermissions]
+
+///////////////////////////////////////////////////////////////////////////////
+// Batch create Google Wallet objects from an existing class
+///////////////////////////////////////////////////////////////////////////////
+
+// [START batch]
+// The request body will be a multiline string
+// See below for more information
+// https://cloud.google.com/compute/docs/api/how-tos/batch//example
+string data = "";
+
+// Example: Generate three new pass objects
+for (int i = 0; i < 3; i++)
+{
+  // Generate a random user ID
+  userId = Regex.Replace(Guid.NewGuid().ToString(), "[^\\w.-]", "_");
+
+  // Generate an object ID with the user ID
+  objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
+  var batchObject = new
+    {
+      id = objectId,
+      classId = $"{issuerId}.{classId}",
+      heroImage = new
+      {
+        sourceUri = new
+        {
+          uri = "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+          description = "Test heroImage description"
+        }
+      },
+      textModulesData = new object[]
+      {
+        new
+        {
+          header = "Test text module header",
+          body = "Test text module body"
+        }
+      },
+      linksModuleData = new
+      {
+        uris = new object[]
+        {
+          new
+          {
+            kind = "walletobjects#uri",
+            uri = "http://maps.google.com/",
+            description = "Test link module uri description"
+          },
+          new
+          {
+            kind = "walletobjects#uri",
+            uri = "tel:6505555555",
+            description = "Test link module tel description"
+          }
+        }
+      },
+      imageModulesData = new object[]
+      {
+        new
+        {
+          mainImage = new
+          {
+            kind = "walletobjects#image",
+            sourceUri = new
+            {
+              kind = "walletobjects#uri",
+              uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+              description = "Test image module description"
+            }
+          }
+        }
+      },
+      barcode = new
+      {
+        type = "qrCode",
+        value = "Testing Offers QR Code"
+      },
+      state = "active",
+      validTimeInterval = new
+      {
+        kind = "walletobjects#timeInterval",
+        start = new
+        {
+          date = "2023-06-12T23:20:50.52Z"
+        },
+        end = new
+        {
+          date = "2023-12-12T23:20:50.52Z"
+        }
+      },
+      locations = new object[]
+      {
+        new
+        {
+          kind = "walletobjects#latLongPoint",
+          latitude = 37.424015499999996,
+          longitude = -122.09259560000001
+        }
+      }
+    };
+
+  data += "--batch_createobjectbatch\n";
+  data += "Content-Type: application/json\n\n";
+  data += "POST /walletobjects/v1/offerObject/\n\n";
+
+  data += JsonConvert.SerializeObject(batchObject) + "\n\n";
+}
+data += "--batch_createobjectbatch--";
+
+// Invoke the batch API calls
+HttpRequestMessage objectRequest = new HttpRequestMessage(
+    HttpMethod.Post,
+    "https://walletobjects.googleapis.com/batch");
+
+objectRequest.Content = new StringContent(data);
+objectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("multipart/mixed");
+objectRequest.Content.Headers.ContentType.Parameters.Add(
+    // `boundary` is the delimiter between API calls in the batch request
+    new NameValueHeaderValue("boundary", "batch_createobjectbatch"));
+
+HttpResponseMessage objectResponse = httpClient.Send(objectRequest);
+
+string objectContent = await objectResponse.Content.ReadAsStringAsync();
+
+Console.WriteLine($"object GET or POST response: {objectContent}");
+// [END batch]

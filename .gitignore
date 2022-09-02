@@ -2,6 +2,7 @@
 .DS_Store
 .vscode
 *.code-workspace
+testing/
 
 # Node.js
 node_modules
@@ -15,12 +16,18 @@ build
 local.properties
 .classpath
 .project
+java/lib/
+
+# See: https://developers.google.com/wallet/generic/resources/libraries
+java/lib/libwalletobjects_public_java_lib_v1.jar
 
 # Python
 *.pyc
 __pycache__
 .venv/
 Pipfile.lock
+*.yapf
+.python-version
 
 # .NET
 bin
@@ -31,6 +38,9 @@ obj
 # PHP
 vendor
 composer.lock
+
+# See: https://developers.google.com/wallet/generic/resources/libraries
+php/lib/Walletobjects.php
 
 # Ruby
 Gemfile.lock
