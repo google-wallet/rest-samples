@@ -288,69 +288,69 @@ async function main() {
     // Generate an object ID with the user ID
     objectId = `${issuerId}.${userId}-${classId}`;
     batchObject = {
-        "id": objectId,
-        "classId": `${issuerId}.${classId}`,
-        "heroImage": {
-          "sourceUri": {
-            "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-            "description": "Test heroImage description"
-          }
-        },
-        "textModulesData": [
+      "id": objectId,
+      "classId": `${issuerId}.${classId}`,
+      "heroImage": {
+        "sourceUri": {
+          "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+          "description": "Test heroImage description"
+        }
+      },
+      "textModulesData": [
+        {
+          "header": "Test text module header",
+          "body": "Test text module body"
+        }
+      ],
+      "linksModuleData": {
+        "uris": [
           {
-            "header": "Test text module header",
-            "body": "Test text module body"
-          }
-        ],
-        "linksModuleData": {
-          "uris": [
-            {
-              "kind": "walletobjects#uri",
-              "uri": "http://maps.google.com/",
-              "description": "Test link module uri description"
-            },
-            {
-              "kind": "walletobjects#uri",
-              "uri": "tel:6505555555",
-              "description": "Test link module tel description"
-            }
-          ]
-        },
-        "imageModulesData": [
+            "kind": "walletobjects#uri",
+            "uri": "http://maps.google.com/",
+            "description": "Test link module uri description"
+          },
           {
-            "mainImage": {
-              "kind": "walletobjects#image",
-              "sourceUri": {
-                "kind": "walletobjects#uri",
-                "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-                "description": "Test image module description"
-              }
-            }
-          }
-        ],
-        "barcode": {
-          "kind": "walletobjects#barcode",
-          "type": "qrCode",
-          "value": "Test QR Code"
-        },
-        "cardNumber": "Test card number",
-        "cardPin": "Test card pin",
-        "balance": {
-          "kind": "walletobjects#money",
-          "micros": 20000000,
-          "currencyCode": "USD"
-        },
-        "balanceUpdateTime": {
-          "date": "2020-04-12T16:20:50.52Z"
-        },
-        "locations": [
-          {
-            "kind": "walletobjects#latLongPoint",
-            "latitude": 37.424015499999996,
-            "longitude": -122.09259560000001
+            "kind": "walletobjects#uri",
+            "uri": "tel:6505555555",
+            "description": "Test link module tel description"
           }
         ]
-      };
+      },
+      "imageModulesData": [
+        {
+          "mainImage": {
+            "kind": "walletobjects#image",
+            "sourceUri": {
+              "kind": "walletobjects#uri",
+              "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+              "description": "Test image module description"
+            }
+          }
+        }
+      ],
+      "barcode": {
+        "kind": "walletobjects#barcode",
+        "type": "qrCode",
+        "value": "Test QR Code"
+      },
+      "cardNumber": "Test card number",
+      "cardPin": "Test card pin",
+      "balance": {
+        "kind": "walletobjects#money",
+        "micros": 20000000,
+        "currencyCode": "USD"
+      },
+      "balanceUpdateTime": {
+        "date": "2020-04-12T16:20:50.52Z"
+      },
+      "locations": [
+        {
+          "kind": "walletobjects#latLongPoint",
+          "latitude": 37.424015499999996,
+          "longitude": -122.09259560000001
+        }
+      ]
+    };
 
     data += '--batch_createobjectbatch\n';
     data += 'Content-Type: application/json\n\n';

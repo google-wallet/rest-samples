@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "google-auth-library": ">=5.9.2",
-    "jsonwebtoken": ">=8.5.1"
+    "google-auth-library": "^5.9.2",
+    "jsonwebtoken": "^8.5.1",
+    "uuidv4": "^6.2.13"
   }
 }

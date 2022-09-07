@@ -425,12 +425,20 @@ def indent(text, spaces):
     return text.replace("\n", "\n" + (" " * spaces))
 
 
+def format_filename_dotnet(object_type_name):
+    """Format .cs filename for .NET"""
+    return f"Demo{object_type_name[0].upper()}{object_type_name[1:]}.cs"
+
+
 def format_payload_dotnet(unformatted_payload):
     """Format JSON payloads for .NET syntax"""
     formatted_output = []
 
-    unformatted_payload = (unformatted_payload.replace('  "', "  ").replace(
-        '": ', " = ").replace(" string = ", " @string = ").replace("]", "}"))
+    unformatted_payload = unformatted_payload.replace('  "', "  ")
+    unformatted_payload = unformatted_payload.replace('": ', " = ")
+    unformatted_payload = unformatted_payload.replace(" string = ",
+                                                      " @string = ")
+    unformatted_payload = unformatted_payload.replace("]", "}")
 
     for line in unformatted_payload.split("\n"):
         _indent = len(line) - len(line.lstrip(" "))
@@ -443,30 +451,37 @@ def format_payload_dotnet(unformatted_payload):
     return "\n".join(formatted_output)
 
 
-def format_batch_payload(unformatted_payload):
-    """Format batch request payloads with additional indentation."""
+def format_payload_java(unformatted_payload):
+    """Format JSON payloads for Java syntax"""
+    formatted_payload = unformatted_payload.replace('"', '\\"')
+    formatted_payload = formatted_payload.replace("\n", '"\n      + "')
+
+    formatted_payload = '\n        "' + formatted_payload + '"'
+
+    return formatted_payload
+
+
+def format_with_offset(unformatted_payload, offset):
+    """Format request payloads with additional indentation offset."""
     formatted_payload = [unformatted_payload.split("\n")[0]]
-    formatted_payload += ["    " + x for x in unformatted_payload.split("\n")[1:]]
+    formatted_payload += [
+        (" " * offset) + x for x in unformatted_payload.split("\n")[1:]
+    ]
     return "\n".join(formatted_payload)
 
 
 lang_config = {
     "java": {
-        "ext":
-            "java",
-        "class_id":
-            "%s.%s",
-        "object_id":
-            "%s",
-        "formatter":
-            lambda s: '\n        "' + s.replace('"', '\\"').replace(
-                "\n", '"\n      + "') + '"',
-        "filename":
-            lambda s: f"src/main/java/Demo{s[0].upper()}{s[1:]}.java",
-        "indent":
-            2,
-        "continuation_indent":
-            4,
+        "ext": "java",
+        "class_id": "%s.%s",
+        "object_id": "%s",
+        "formatter": format_payload_java,
+        "filename": lambda s: f"src/main/java/Demo{s[0].upper()}{s[1:]}.java",
+        "indent": 2,
+        "continuation_indent": 4,
+        "object_indent_offset": 0,
+        "class_indent_offset": 0,
+        "batch_indent_offset": 0,
         "batch_set_statements": {
             "generic": [
                 ".setId(objectId)",
@@ -516,6 +531,9 @@ lang_config = {
         "object_id": "OBJECT_ID",
         "indent": 4,
         "continuation_indent": 4,
+        "object_indent_offset": 0,
+        "class_indent_offset": 0,
+        "batch_indent_offset": 4,
         "filename": lambda s: f"demo_{s.lower()}.py",
         "batch_set_statements": {
             "generic": [],
@@ -533,7 +551,9 @@ lang_config = {
         "object_id": "objectId",
         "indent": 2,
         "continuation_indent": 4,
-        "formatter": lambda s: indent(s, 2),
+        "object_indent_offset": 2,
+        "class_indent_offset": 2,
+        "batch_indent_offset": 4,
         "filename": lambda s: f"demo-{s.lower()}.js",
         "batch_set_statements": {
             "generic": [],
@@ -551,6 +571,9 @@ lang_config = {
         "object_id": '"{$objectId}"',
         "indent": 2,
         "continuation_indent": 4,
+        "object_indent_offset": 0,
+        "class_indent_offset": 0,
+        "batch_indent_offset": 0,
         "filename": lambda s: f"demo_{s.lower()}.php",
         "batch_set_statements": {
             "generic": [
@@ -596,20 +619,16 @@ lang_config = {
         },
     },
     "dotnet": {
-        "ext":
-            "cs",
-        "class_id":
-            '$"{issuerId}.{classId}"',
-        "object_id":
-            "objectId",
-        "formatter":
-            format_payload_dotnet,
-        "filename":
-            lambda s: f"Demo{object_type[0].upper()}{object_type[1:]}.cs",
-        "indent":
-            2,
-        "continuation_indent":
-            4,
+        "ext": "cs",
+        "class_id": '$"{issuerId}.{classId}"',
+        "object_id": "objectId",
+        "formatter": format_payload_dotnet,
+        "filename": format_filename_dotnet,
+        "indent": 2,
+        "continuation_indent": 4,
+        "object_indent_offset": 4,
+        "class_indent_offset": 4,
+        "batch_indent_offset": 6,
         "batch_set_statements": {
             "generic": [],
             "offer": [],
@@ -625,6 +644,11 @@ lang_config = {
         "class_id": "\"issuer-id.class-id\"",
         "object_id": "\"issuer-id.user-id\"",
         "filename": lambda s: f"demo_{s.lower()}.http",
+        "indent": 2,
+        "continuation_indent": 2,
+        "object_indent_offset": 0,
+        "class_indent_offset": 0,
+        "batch_indent_offset": 0,
         "batch_set_statements": {
             "generic": [],
             "offer": [],
@@ -649,10 +673,23 @@ for lang, config in lang_config.items():
 
         # JSON payloads
         for name, value in content.items():
+            if name == "$object_payload":
+                payload_offset = config.get("object_indent_offset", 0)
+            else:
+                payload_offset = config.get("class_indent_offset", 0)
+            batch_offset = config.get("batch_indent_offset", 0)
+
             payload = json.dumps(value, indent=config.get("indent", 2))
             if "formatter" in config:
                 payload = config["formatter"](payload)
-            batch_payload = format_batch_payload(payload)
+
+            if batch_offset > 0:
+                batch_payload = format_with_offset(payload, batch_offset)
+            else:
+                batch_payload = payload
+            if payload_offset > 0:
+                payload = format_with_offset(payload, payload_offset)
+
             output = output.replace(f"{name}_batch", batch_payload)
             output = output.replace(name, payload)
 
