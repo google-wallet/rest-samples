@@ -26,228 +26,255 @@ using Newtonsoft.Json;
 // [END imports]
 
 
-/*
-* keyFilePath - Path to service account key file from Google Cloud Console
-*             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
-*/
-string keyFilePath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS") ?? "/path/to/key.json";
-
-/*
-* issuerId - The issuer ID being used in this request
-*          - Environment variable: WALLET_ISSUER_ID
-*/
-string issuerId = Environment.GetEnvironmentVariable("WALLET_ISSUER_ID") ?? "issuer-id";
-
-/*
-* classId - Developer-defined ID for the wallet class
-*         - Environment variable: WALLET_CLASS_ID
-*/
-string classId = Environment.GetEnvironmentVariable("WALLET_CLASS_ID") ?? "test-$object_type-class-id";
-
-/*
-* userId - Developer-defined ID for the user, such as an email address
-*        - Environment variable: WALLET_USER_ID
-*/
-string userId = Environment.GetEnvironmentVariable("WALLET_USER_ID") ?? "user-id";
-
-/*
-* objectId - ID for the wallet object
-*          - Format: `issuerId.identifier`
-*          - Should only include alphanumeric characters, '.', '_', or '-'
-*          - `identifier` is developer-defined and unique to the user
-*/
-string objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
-// [END setup]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create authenticated HTTP client, using service account file.
-///////////////////////////////////////////////////////////////////////////////
-
-// [START auth]
-ServiceAccountCredential credentials = (ServiceAccountCredential)GoogleCredential.FromFile(keyFilePath)
-    .CreateScoped(new[] { "https://www.googleapis.com/auth/wallet_object.issuer" })
-    .UnderlyingCredential;
-
-HttpClient httpClient = new HttpClient();
-httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-    "Bearer",
-    await credentials.GetAccessTokenForRequestAsync()
-);
-// [END auth]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create a class via the API (this can also be done in the business console).
-///////////////////////////////////////////////////////////////////////////////
-
-// [START class]
-string classUrl = "https://walletobjects.googleapis.com/walletobjects/v1/$object_typeClass/";
-var classPayload = $class_payload;
-
-HttpRequestMessage classRequest = new HttpRequestMessage(HttpMethod.Post, classUrl);
-classRequest.Content = new StringContent(JsonConvert.SerializeObject(classPayload));
-HttpResponseMessage classResponse = httpClient.Send(classRequest);
-
-string classContent = await classResponse.Content.ReadAsStringAsync();
-
-Console.WriteLine($"class POST response: {classContent}");
-// [END class]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create an object via the API.
-///////////////////////////////////////////////////////////////////////////////
-
-// [START object]
-string objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/$object_typeObject/";
-var objectPayload = $object_payload;
-
-HttpRequestMessage objectRequest = new HttpRequestMessage(HttpMethod.Get, $"{objectUrl}{objectId}");
-HttpResponseMessage objectResponse = httpClient.Send(objectRequest);
-if (objectResponse.StatusCode == HttpStatusCode.NotFound)
+class Demo$object_type_title
 {
-  // Object does not yet exist
-  // Send POST request to create it
-  objectRequest = new HttpRequestMessage(HttpMethod.Post, objectUrl);
-  objectRequest.Content = new StringContent(JsonConvert.SerializeObject(objectPayload));
-  objectResponse = httpClient.Send(objectRequest);
-}
+  /*
+  * keyFilePath - Path to service account key file from Google Cloud Console
+  *             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
+  */
+  static string keyFilePath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS") ?? "/path/to/key.json";
 
-string objectContent = await objectResponse.Content.ReadAsStringAsync();
-Console.WriteLine($"object GET or POST response: {objectContent}");
-// [END object]
+  /*
+  * issuerId - The issuer ID being used in this request
+  *          - Environment variable: WALLET_ISSUER_ID
+  */
+  static string issuerId = Environment.GetEnvironmentVariable("WALLET_ISSUER_ID") ?? "issuer-id";
 
-///////////////////////////////////////////////////////////////////////////////
-// Create a JWT for the object, and encode it to create a "Save" URL.
-///////////////////////////////////////////////////////////////////////////////
+  /*
+  * classId - Developer-defined ID for the wallet class
+  *         - Environment variable: WALLET_CLASS_ID
+  */
+  static string classId = Environment.GetEnvironmentVariable("WALLET_CLASS_ID") ?? "test-$object_type-class-id";
 
-// [START jwt]
-JwtPayload claims = new JwtPayload();
-claims.Add("iss", credentials.Id);
-claims.Add("aud", "google");
-claims.Add("origins", new string[] { "www.example.com" });
-claims.Add("typ", "savetowallet");
-claims.Add("payload", new
-{
-  $object_typeObjects = new object[]
+  /*
+  * userId - Developer-defined ID for the user, such as an email address
+  *        - Environment variable: WALLET_USER_ID
+  */
+  static string userId = Environment.GetEnvironmentVariable("WALLET_USER_ID") ?? "user-id";
+
+  /*
+  * objectId - ID for the wallet object
+  *          - Format: `issuerId.identifier`
+  *          - Should only include alphanumeric characters, '.', '_', or '-'
+  *          - `identifier` is developer-defined and unique to the user
+  */
+  static string objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
+  // [END setup]
+
+  static ServiceAccountCredential credentials;
+  static HttpClient httpClient;
+
+  async static void Auth()
   {
-    new
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create authenticated HTTP client, using service account file.
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START auth]
+    credentials = (ServiceAccountCredential)GoogleCredential.FromFile(keyFilePath)
+        .CreateScoped(new[] { "https://www.googleapis.com/auth/wallet_object.issuer" })
+        .UnderlyingCredential;
+
+    httpClient = new HttpClient();
+    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        "Bearer",
+        await credentials.GetAccessTokenForRequestAsync()
+    );
+    // [END auth]
+  }
+
+  async static void Create$object_type_titleClass()
+  {
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create a class via the API (this can also be done in the business console).
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START class]
+    string classUrl = "https://walletobjects.googleapis.com/walletobjects/v1/$object_typeClass/";
+    var classPayload = $class_payload;
+
+    HttpRequestMessage classRequest = new HttpRequestMessage(HttpMethod.Post, classUrl);
+    classRequest.Content = new StringContent(JsonConvert.SerializeObject(classPayload));
+    HttpResponseMessage classResponse = httpClient.Send(classRequest);
+
+    string classContent = await classResponse.Content.ReadAsStringAsync();
+
+    Console.WriteLine($"class POST response: {classContent}");
+    // [END class]
+  }
+
+  async static void Create$object_type_titleObject()
+  {
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create an object via the API.
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START object]
+    string objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/$object_typeObject/";
+    var objectPayload = $object_payload;
+
+    HttpRequestMessage objectRequest = new HttpRequestMessage(HttpMethod.Get, $"{objectUrl}{objectId}");
+    HttpResponseMessage objectResponse = httpClient.Send(objectRequest);
+    if (objectResponse.StatusCode == HttpStatusCode.NotFound)
     {
-      id = objectId
+      // Object does not yet exist
+      // Send POST request to create it
+      objectRequest = new HttpRequestMessage(HttpMethod.Post, objectUrl);
+      objectRequest.Content = new StringContent(JsonConvert.SerializeObject(objectPayload));
+      objectResponse = httpClient.Send(objectRequest);
     }
+
+    string objectContent = await objectResponse.Content.ReadAsStringAsync();
+    Console.WriteLine($"object GET or POST response: {objectContent}");
+    // [END object]
   }
-});
 
-RsaSecurityKey key = new RsaSecurityKey(credentials.Key);
-SigningCredentials signingCredentials = new SigningCredentials(key, SecurityAlgorithms.RsaSha256);
-JwtSecurityToken jwt = new JwtSecurityToken(new JwtHeader(signingCredentials), claims);
-string token = new JwtSecurityTokenHandler().WriteToken(jwt);
-string saveUrl = $"https://pay.google.com/gp/v/save/{token}";
-
-Console.WriteLine(saveUrl);
-// [END jwt]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create a new Google Wallet issuer account
-///////////////////////////////////////////////////////////////////////////////
-
-// [START createIssuer]
-// New issuer name
-string issuerName = "name";
-
-// New issuer email address
-string issuerEmail = "email-address";
-
-// Issuer API endpoint
-string issuerUrl = "https://walletobjects.googleapis.com/walletobjects/v1/issuer";
-
-// New issuer information
-var issuerPayload = new
-{
-  name = issuerName,
-  contactInfo = new
+  static void CreateJWTSaveURL()
   {
-    email = issuerEmail
-  }
-};
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create a JWT for the object, and encode it to create a "Save" URL.
+    ///////////////////////////////////////////////////////////////////////////////
 
-HttpRequestMessage issuerRequest = new HttpRequestMessage(HttpMethod.Post, issuerUrl);
-issuerRequest.Content = new StringContent(JsonConvert.SerializeObject(issuerPayload));
-HttpResponseMessage issuerResponse = httpClient.Send(issuerRequest);
-
-Console.WriteLine($"issuer POST response: {await issuerResponse.Content.ReadAsStringAsync()}");
-// [END createIssuer]
-
-///////////////////////////////////////////////////////////////////////////////
-// Update permissions for an existing Google Wallet issuer account
-///////////////////////////////////////////////////////////////////////////////
-
-// [START updatePermissions]
-// Permissions API endpoint
-string permissionsUrl = $"https://walletobjects.googleapis.com/walletobjects/v1/permissions/{issuerId}";
-
-// New issuer permissions information
-var permissionsPayload = new
-{
-  issuerId = issuerId,
-  permissions = new object[]
-  {
-    // Copy as needed for each email address that will need access
-    new
+    // [START jwt]
+    JwtPayload claims = new JwtPayload();
+    claims.Add("iss", credentials.Id);
+    claims.Add("aud", "google");
+    claims.Add("origins", new string[] { "www.example.com" });
+    claims.Add("typ", "savetowallet");
+    claims.Add("payload", new
     {
-      emailAddress = "email-address",
-      role = "READER | WRITER | OWNER"
-    }
+      $object_typeObjects = new object[]
+      {
+        new
+        {
+          id = objectId
+        }
+      }
+    });
+
+    RsaSecurityKey key = new RsaSecurityKey(credentials.Key);
+    SigningCredentials signingCredentials = new SigningCredentials(key, SecurityAlgorithms.RsaSha256);
+    JwtSecurityToken jwt = new JwtSecurityToken(new JwtHeader(signingCredentials), claims);
+    string token = new JwtSecurityTokenHandler().WriteToken(jwt);
+    string saveUrl = $"https://pay.google.com/gp/v/save/{token}";
+
+    Console.WriteLine(saveUrl);
+    // [END jwt]
   }
-};
 
-HttpRequestMessage permissionsRequest = new HttpRequestMessage(HttpMethod.Put, permissionsUrl);
-permissionsRequest.Content = new StringContent(JsonConvert.SerializeObject(permissionsPayload));
-HttpResponseMessage permissionsResponse = httpClient.Send(permissionsRequest);
+  async static void CreateIssuerAccount()
+  {
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create a new Google Wallet issuer account
+    ///////////////////////////////////////////////////////////////////////////////
 
-Console.WriteLine($"permissions PUT response: {await permissionsResponse.Content.ReadAsStringAsync()}");
-// [END updatePermissions]
+    // [START createIssuer]
+    // New issuer name
+    string issuerName = "name";
 
-///////////////////////////////////////////////////////////////////////////////
-// Batch create Google Wallet objects from an existing class
-///////////////////////////////////////////////////////////////////////////////
+    // New issuer email address
+    string issuerEmail = "email-address";
 
-// [START batch]
-// The request body will be a multiline string
-// See below for more information
-// https://cloud.google.com/compute/docs/api/how-tos/batch//example
-string data = "";
+    // Issuer API endpoint
+    string issuerUrl = "https://walletobjects.googleapis.com/walletobjects/v1/issuer";
 
-// Example: Generate three new pass objects
-for (int i = 0; i < 3; i++)
-{
-  // Generate a random user ID
-  userId = Regex.Replace(Guid.NewGuid().ToString(), "[^\\w.-]", "_");
+    // New issuer information
+    var issuerPayload = new
+    {
+      name = issuerName,
+      contactInfo = new
+      {
+        email = issuerEmail
+      }
+    };
 
-  // Generate an object ID with the user ID
-  objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
-  var batchObject = $object_payload_batch;
+    HttpRequestMessage issuerRequest = new HttpRequestMessage(HttpMethod.Post, issuerUrl);
+    issuerRequest.Content = new StringContent(JsonConvert.SerializeObject(issuerPayload));
+    HttpResponseMessage issuerResponse = httpClient.Send(issuerRequest);
 
-  data += "--batch_createobjectbatch\n";
-  data += "Content-Type: application/json\n\n";
-  data += "POST /walletobjects/v1/$object_typeObject/\n\n";
+    Console.WriteLine($"issuer POST response: {await issuerResponse.Content.ReadAsStringAsync()}");
+    // [END createIssuer]
+  }
 
-  data += JsonConvert.SerializeObject(batchObject) + "\n\n";
+  async static void UpdateIssuerAccountPermissions()
+  {
+    ///////////////////////////////////////////////////////////////////////////////
+    // Update permissions for an existing Google Wallet issuer account
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START updatePermissions]
+    // Permissions API endpoint
+    string permissionsUrl = $"https://walletobjects.googleapis.com/walletobjects/v1/permissions/{issuerId}";
+
+    // New issuer permissions information
+    var permissionsPayload = new
+    {
+      issuerId = issuerId,
+      permissions = new object[]
+      {
+      // Copy as needed for each email address that will need access
+      new
+      {
+        emailAddress = "email-address",
+        role = "READER | WRITER | OWNER"
+      }
+      }
+    };
+
+    HttpRequestMessage permissionsRequest = new HttpRequestMessage(HttpMethod.Put, permissionsUrl);
+    permissionsRequest.Content = new StringContent(JsonConvert.SerializeObject(permissionsPayload));
+    HttpResponseMessage permissionsResponse = httpClient.Send(permissionsRequest);
+
+    Console.WriteLine($"permissions PUT response: {await permissionsResponse.Content.ReadAsStringAsync()}");
+    // [END updatePermissions]
+  }
+
+  async static void BatchCreate$object_type_titleObjects()
+  {
+    ///////////////////////////////////////////////////////////////////////////////
+    // Batch create Google Wallet objects from an existing class
+    ///////////////////////////////////////////////////////////////////////////////
+
+    // [START batch]
+    // The request body will be a multiline string
+    // See below for more information
+    // https://cloud.google.com/compute/docs/api/how-tos/batch//example
+    string data = "";
+
+    // Example: Generate three new pass objects
+    for (int i = 0; i < 3; i++)
+    {
+      // Generate a random user ID
+      userId = Regex.Replace(Guid.NewGuid().ToString(), "[^\\w.-]", "_");
+
+      // Generate an object ID with the user ID
+      objectId = $"{issuerId}.{new Regex(@"[^\w.-]", RegexOptions.Compiled).Replace(userId, "_")}-{classId}";
+      var batchObject = $object_payload_batch;
+
+      data += "--batch_createobjectbatch\n";
+      data += "Content-Type: application/json\n\n";
+      data += "POST /walletobjects/v1/$object_typeObject/\n\n";
+
+      data += JsonConvert.SerializeObject(batchObject) + "\n\n";
+    }
+    data += "--batch_createobjectbatch--";
+
+    // Invoke the batch API calls
+    HttpRequestMessage batchObjectRequest = new HttpRequestMessage(
+        HttpMethod.Post,
+        "https://walletobjects.googleapis.com/batch");
+
+    batchObjectRequest.Content = new StringContent(data);
+    batchObjectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("multipart/mixed");
+    batchObjectRequest.Content.Headers.ContentType.Parameters.Add(
+        // `boundary` is the delimiter between API calls in the batch request
+        new NameValueHeaderValue("boundary", "batch_createobjectbatch"));
+
+    HttpResponseMessage batchObjectResponse = httpClient.Send(batchObjectRequest);
+
+    string batchObjectContent = await batchObjectResponse.Content.ReadAsStringAsync();
+
+    Console.WriteLine($"batch POST response: {batchObjectContent}");
+    // [END batch]
+  }
 }
-data += "--batch_createobjectbatch--";
-
-// Invoke the batch API calls
-HttpRequestMessage objectRequest = new HttpRequestMessage(
-    HttpMethod.Post,
-    "https://walletobjects.googleapis.com/batch");
-
-objectRequest.Content = new StringContent(data);
-objectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("multipart/mixed");
-objectRequest.Content.Headers.ContentType.Parameters.Add(
-    // `boundary` is the delimiter between API calls in the batch request
-    new NameValueHeaderValue("boundary", "batch_createobjectbatch"));
-
-HttpResponseMessage objectResponse = httpClient.Send(objectRequest);
-
-string objectContent = await objectResponse.Content.ReadAsStringAsync();
-
-Console.WriteLine($"object GET or POST response: {objectContent}");
-// [END batch]

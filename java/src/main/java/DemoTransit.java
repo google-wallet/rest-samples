@@ -138,6 +138,9 @@ public class DemoTransit {
     ///////////////////////////////////////////////////////////////////////////////
 
     // [START object]
+    HttpRequest objectRequest;
+    HttpResponse objectResponse;
+
     GenericUrl objectUrl = new GenericUrl(
         "https://walletobjects.googleapis.com/walletobjects/v1/transitObject/" + objectId);
     String objectPayload = String.format(
@@ -249,24 +252,31 @@ public class DemoTransit {
       + "  ]"
       + "}", objectId, issuerId, classId);
 
-    // Create and send the request
-    HttpRequest objectRequest = httpRequestFactory.buildGetRequest(objectUrl);
-    HttpResponse objectResponse = objectRequest.execute();
-
-    if (objectResponse.getStatusCode() == 404) {
-      // Object does not yet exist
-      // Send POST request to create it
-      // Convert body to JSON
-      JsonParser objectParser = GsonFactory.getDefaultInstance().createJsonParser(objectPayload);
-      GenericJson objectJson = objectParser.parseAndClose(GenericJson.class);
-      HttpContent objectBody = new JsonHttpContent(GsonFactory.getDefaultInstance(), objectJson);
-
+    try {
       // Create and send the request
-      objectRequest = httpRequestFactory.buildPostRequest(objectUrl, objectBody);
+      objectRequest = httpRequestFactory.buildGetRequest(objectUrl);
       objectResponse = objectRequest.execute();
-    }
 
-    System.out.println("object GET or POST response: " + objectResponse.parseAsString());
+      System.out.println("object GET response: " + objectResponse.parseAsString());
+    } catch (HttpResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not yet exist
+        // Send POST request to create it
+        // Convert body to JSON
+        JsonParser objectParser = GsonFactory.getDefaultInstance().createJsonParser(objectPayload);
+        GenericJson objectJson = objectParser.parseAndClose(GenericJson.class);
+        HttpContent objectBody = new JsonHttpContent(GsonFactory.getDefaultInstance(), objectJson);
+
+        // Create and send the request
+        objectRequest = httpRequestFactory.buildPostRequest(objectUrl, objectBody);
+        objectResponse = objectRequest.execute();
+
+        System.out.println("object POST response: " + objectResponse.parseAsString());
+      } else {
+        // Something else went wrong
+        throw ex;
+      }
+    }
     // [END object]
 
     ///////////////////////////////////////////////////////////////////////////////
