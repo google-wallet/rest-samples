@@ -20,340 +20,522 @@
 import json
 import os
 import re
+from typing import List
 import uuid
 
 from google.auth.transport.requests import AuthorizedSession
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials
 from google.auth import jwt, crypt
 # [END imports]
 
-# KEY_FILE_PATH - Path to service account key file from Google Cloud Console
-#               - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
-KEY_FILE_PATH = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS",
-                               "/path/to/key.json")
 
-# ISSUER_ID - The issuer ID being updated in this request
-#           - Environment variable: WALLET_ISSUER_ID
-ISSUER_ID = os.environ.get("WALLET_ISSUER_ID", "issuer-id")
+class DemoLoyalty:
+    """Demo class for creating and managing Loyalty cards in Google Wallet.
 
-# CLASS_ID - Developer-defined ID for the wallet class
-#         - Environment variable: WALLET_CLASS_ID
-CLASS_ID = os.environ.get("WALLET_CLASS_ID", "test-loyalty-class-id")
+    Attributes:
+        key_file_path: Path to service account key file from Google Cloud
+            Console. Environment variable: GOOGLE_APPLICATION_CREDENTIALS.
+        base_url: Base URL for Google Wallet API requests.
+    """
 
-# USER_ID - Developer-defined ID for the user, such as an email address
-#        - Environment variable: WALLET_USER_ID
-USER_ID = os.environ.get("WALLET_USER_ID", "test@example.com")
+    def __init__(self):
+        self.key_file_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS',
+                                            '/path/to/key.json')
+        self.base_url = 'https://walletobjects.googleapis.com/walletobjects/v1'
 
-# objectId - ID for the wallet object
-#          - Format: `issuerId.identifier`
-#          - Should only include alphanumeric characters, '.', '_', or '-'
-#          - `identifier` is developer-defined and unique to the user
-OBJECT_ID = "%s.%s-%s" % (ISSUER_ID, re.sub(r"[^\w.-]", "_", USER_ID), CLASS_ID)
-# [END setup]
+        # Set up authenticated client
+        self.auth()
 
-###############################################################################
-# Create authenticated HTTP client, using service account file.
-###############################################################################
+    # [END setup]
 
-# [START auth]
-credentials = service_account.Credentials.from_service_account_file(
-    KEY_FILE_PATH,
-    scopes=["https://www.googleapis.com/auth/wallet_object.issuer"])
+    # [START auth]
+    def auth(self):
+        """Create authenticated HTTP client using a service account file."""
+        self.credentials = Credentials.from_service_account_file(
+            self.key_file_path,
+            scopes=['https://www.googleapis.com/auth/wallet_object.issuer'])
 
-http_client = AuthorizedSession(credentials)
-# [END auth]
+        self.http_client = AuthorizedSession(self.credentials)
 
-###############################################################################
-# Create a class via the API (this can also be done in the business console).
-###############################################################################
+    # [END auth]
 
-# [START class]
-CLASS_URL = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/"
-class_payload = {
-    "id": f"{ISSUER_ID}.{CLASS_ID}",
-    "issuerName": "test issuer name",
-    "programName": "test program name",
-    "programLogo": {
-        "kind": "walletobjects#image",
-        "sourceUri": {
-            "kind": "walletobjects#uri",
-            "uri": "http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg"
-        }
-    },
-    "reviewStatus": "underReview"
-}
+    # [START class]
+    def create_loyalty_class(self, issuer_id: str, class_suffix: str) -> str:
+        """Create a class via the API.
 
-class_response = http_client.post(
-    CLASS_URL,
-    json=class_payload
-)
-print("class POST response: ", class_response.text)
-# [END class]
+        This can also be done in the Google Pay and Wallet console.
 
-###############################################################################
-# Get or create an object via the API.
-###############################################################################
+        Args:
+            issuer_id (str): The issuer ID being used for this request.
+            class_suffix (str): Developer-defined unique ID for this pass class.
 
-# [START object]
-OBJECT_URL = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/"
-object_payload = {
-    "id": OBJECT_ID,
-    "classId": f"{ISSUER_ID}.{CLASS_ID}",
-    "heroImage": {
-        "sourceUri": {
-            "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-            "description": "Test heroImage description"
-        }
-    },
-    "textModulesData": [
-        {
-            "header": "Test text module header",
-            "body": "Test text module body"
-        }
-    ],
-    "linksModuleData": {
-        "uris": [
-            {
-                "kind": "walletobjects#uri",
-                "uri": "http://maps.google.com/",
-                "description": "Test link module uri description"
-            },
-            {
-                "kind": "walletobjects#uri",
-                "uri": "tel:6505555555",
-                "description": "Test link module tel description"
-            }
-        ]
-    },
-    "imageModulesData": [
-        {
-            "mainImage": {
-                "kind": "walletobjects#image",
-                "sourceUri": {
-                    "kind": "walletobjects#uri",
-                    "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-                    "description": "Test image module description"
-                }
-            }
-        }
-    ],
-    "barcode": {
-        "kind": "walletobjects#barcode",
-        "type": "qrCode",
-        "value": "Test QR Code"
-    },
-    "state": "active",
-    "accountId": "Test account id",
-    "accountName": "Test account name",
-    "loyaltyPoints": {
-        "balance": {
-            "string": "800"
-        },
-        "label": "Points"
-    },
-    "locations": [
-        {
-            "kind": "walletobjects#latLongPoint",
-            "latitude": 37.424015499999996,
-            "longitude": -122.09259560000001
-        }
-    ]
-}
+        Returns:
+            The pass class ID: f"{issuer_id}.{class_suffix}"
+        """
+        class_url = f'{self.base_url}/loyaltyClass'
 
-object_response = http_client.get(OBJECT_URL + OBJECT_ID)
-if object_response.status_code == 404:
-    # Object does not yet exist
-    # Send POST request to create it
-    object_response = http_client.post(
-        OBJECT_URL,
-        json=object_payload
-    )
-
-print("object GET or POST response:", object_response.text)
-# [END object]
-
-###############################################################################
-# Create a JWT for the object, and encode it to create a "Save" URL.
-###############################################################################
-
-# [START jwt]
-claims = {
-    "iss": http_client.credentials.service_account_email,
-    "aud": "google",
-    "origins": ["www.example.com"],
-    "typ": "savetowallet",
-    "payload": {
-        "loyaltyObjects": [
-            {
-                "id": OBJECT_ID
-            }
-        ]
-    }
-}
-
-signer = crypt.RSASigner.from_service_account_file(KEY_FILE_PATH)
-token = jwt.encode(signer, claims).decode("utf-8")
-save_url = f"https://pay.google.com/gp/v/save/{token}"
-
-print(save_url)
-# [END jwt]
-
-###############################################################################
-# Create a new Google Wallet issuer account
-###############################################################################
-
-# [START createIssuer]
-# New issuer name
-ISSUER_NAME = "name"
-
-# New issuer email address
-ISSUER_EMAIL = "email-address"
-
-# Issuer API endpoint
-ISSUER_URL = "https://walletobjects.googleapis.com/walletobjects/v1/issuer"
-
-# New issuer information
-issuer_payload = {
-    "name": ISSUER_NAME,
-    "contactInfo": {
-        "email": ISSUER_EMAIL
-    }
-}
-
-# Make the POST request
-issuer_response = http_client.post(
-    url=ISSUER_URL,
-    json=issuer_payload
-)
-
-print("issuer POST response:", issuer_response.text)
-# [END createIssuer]
-
-###############################################################################
-# Update permissions for an existing Google Wallet issuer account
-###############################################################################
-
-# [START updatePermissions]
-# Permissions API endpoint
-permissions_url = f"https://walletobjects.googleapis.com/walletobjects/v1/permissions/{ISSUER_ID}"
-
-# New issuer permissions information
-permissions_payload = {
-    "issuerId": ISSUER_ID,
-    "permissions": [
-        # Copy as needed for each email address that will need access
-        {
-            "emailAddress": "email-address",
-            "role": "READER | WRITER | OWNER"
-        },
-    ]
-}
-
-permissions_response = http_client.put(
-    permissions_url,
-    json=permissions_payload
-)
-
-print("permissions PUT response:", permissions_response.text)
-# [END updatePermissions]
-
-###############################################################################
-# Batch create Google Wallet objects from an existing class
-###############################################################################
-
-# [START batch]
-# The request body will be a multiline string
-# See below for more information
-# https://cloud.google.com/compute/docs/api/how-tos/batch#example
-data = ""
-
-# Example: Generate three new pass objects
-for _ in range(3):
-    # Generate a random user ID
-    USER_ID = str(uuid.uuid4()).replace("[^\\w.-]", "_")
-
-    # Generate an object ID with the user ID
-    OBJECT_ID = f"{ISSUER_ID}.{USER_ID}-{CLASS_ID}"
-    BATCH_OBJECT = {
-        "id": OBJECT_ID,
-        "classId": f"{ISSUER_ID}.{CLASS_ID}",
-        "heroImage": {
-            "sourceUri": {
-                "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-                "description": "Test heroImage description"
-            }
-        },
-        "textModulesData": [
-            {
-                "header": "Test text module header",
-                "body": "Test text module body"
-            }
-        ],
-        "linksModuleData": {
-            "uris": [
-                {
-                    "kind": "walletobjects#uri",
-                    "uri": "http://maps.google.com/",
-                    "description": "Test link module uri description"
+        # See below for more information on required properties
+        # https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
+        loyalty_class = {
+            'id': f'{issuer_id}.{class_suffix}',
+            'issuerName': 'Issuer name',
+            'reviewStatus': 'UNDER_REVIEW',
+            'programName': 'Program name',
+            'programLogo': {
+                'sourceUri': {
+                    'uri':
+                        'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
                 },
-                {
-                    "kind": "walletobjects#uri",
-                    "uri": "tel:6505555555",
-                    "description": "Test link module tel description"
-                }
-            ]
-        },
-        "imageModulesData": [
-            {
-                "mainImage": {
-                    "kind": "walletobjects#image",
-                    "sourceUri": {
-                        "kind": "walletobjects#uri",
-                        "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-                        "description": "Test image module description"
-                    }
-                }
-            }
-        ],
-        "barcode": {
-            "kind": "walletobjects#barcode",
-            "type": "qrCode",
-            "value": "Test QR Code"
-        },
-        "state": "active",
-        "accountId": "Test account id",
-        "accountName": "Test account name",
-        "loyaltyPoints": {
-            "balance": {
-                "string": "800"
+                'contentDescription': {
+                    'defaultValue': {
+                        'language': 'en-US',
+                        'value': 'Logo description',
+                    },
+                },
             },
-            "label": "Points"
-        },
-        "locations": [
+        }
+
+        response = self.http_client.post(
+            url=class_url,
+            json=loyalty_class,
+        )
+
+        print('Class insert response')
+        print(response.text)
+
+        return response.json().get('id')
+
+    # [END class]
+
+    # [START object]
+    def create_loyalty_object(self, issuer_id: str, class_suffix: str,
+                              user_id: str) -> str:
+        """Create an object via the API.
+
+        Args:
+            issuer_id (str): The issuer ID being used for this request.
+            class_suffix (str): Developer-defined unique ID for this pass class.
+            user_id (str): Developer-defined user ID for this pass object.
+
+        Returns:
+            The pass object ID: f"{issuer_id}.{user_id}"
+        """
+        object_url = f'{self.base_url}/loyaltyObject'
+
+        # Generate the object ID
+        # Should only include alphanumeric characters, '.', '_', or '-'
+        new_user_id = re.sub(r'[^\w.-]', '_', user_id)
+        object_id = f'{issuer_id}.{new_user_id}'
+
+        # See below for more information on required properties
+        # https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+        loyalty_object = {
+            'id': f'{object_id}',
+            'classId': f'{issuer_id}.{class_suffix}',
+            'state': 'ACTIVE',
+            'heroImage': {
+                'sourceUri': {
+                    'uri':
+                        'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+                },
+                'contentDescription': {
+                    'defaultValue': {
+                        'language': 'en-US',
+                        'value': 'Hero image description',
+                    },
+                },
+            },
+            'textModulesData': [{
+                'header': 'Text module header',
+                'body': 'Text module body',
+                'id': 'TEXT_MODULE_ID',
+            },],
+            'linksModuleData': {
+                'uris': [
+                    {
+                        'uri': 'http://maps.google.com/',
+                        'description': 'Link module URI description',
+                        'id': 'LINK_MODULE_URI_ID',
+                    },
+                    {
+                        'uri': 'tel:6505555555',
+                        'description': 'Link module tel description',
+                        'id': 'LINK_MODULE_TEL_ID',
+                    },
+                ],
+            },
+            'imageModulesData': [{
+                'mainImage': {
+                    'sourceUri': {
+                        'uri':
+                            'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+                    },
+                    'contentDescription': {
+                        'defaultValue': {
+                            'language': 'en-US',
+                            'value': 'Image module description',
+                        },
+                    },
+                },
+                'id': 'IMAGE_MODULE_ID',
+            },],
+            'barcode': {
+                'type': 'QR_CODE',
+                'value': 'QR code',
+            },
+            'locations': [{
+                'latitude': 37.424015499999996,
+                'longitude': -122.09259560000001,
+            },],
+            'accountId': 'Account id',
+            'accountName': 'Account name',
+            'loyaltyPoints': {
+                'label': 'Points',
+                'balance': {
+                    'int': 800,
+                },
+            },
+        }
+
+        response = self.http_client.get(f'{object_url}{object_id}')
+        if response.status_code == 404:
+            # Object does not yet exist
+            # Send POST request to create it
+            response = self.http_client.post(
+                url=object_url,
+                json=loyalty_object,
+            )
+
+            print('Object insert response')
+            print(response.text)
+        else:
+            print('Object get response')
+            print(response.text)
+
+        return response.json().get('id')
+
+    # [END object]
+
+    # [START jwt]
+    def create_jwt_save_url(self, issuer_id: str, class_suffix: str,
+                            user_id: str) -> str:
+        """Generate a signed JWT that creates a new pass class and object.
+
+        When the user opens the "Add to Google Wallet" URL and saves the pass to
+        their wallet, the pass class and object defined in the JWT are
+        created. This allows you to create multiple pass classes and objects in
+        one API call when the user saves the pass to their wallet.
+
+        Args:
+            issuer_id (str): The issuer ID being used for this request.
+            class_suffix (str): Developer-defined unique ID for this pass class.
+            user_id (str): Developer-defined user ID for this pass object.
+
+        Returns:
+            An "Add to Google Wallet" link
+        """
+
+        # Generate the object ID
+        # Should only include alphanumeric characters, '.', '_', or '-'
+        new_user_id = re.sub(r'[^\w.-]', '_', user_id)
+        object_id = f'{issuer_id}.{new_user_id}'
+
+        # See below for more information on required properties
+        # https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
+        loyalty_class = {
+            'id': f'{issuer_id}.{class_suffix}',
+            'issuerName': 'Issuer name',
+            'reviewStatus': 'UNDER_REVIEW',
+            'programName': 'Program name',
+            'programLogo': {
+                'sourceUri': {
+                    'uri':
+                        'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
+                },
+                'contentDescription': {
+                    'defaultValue': {
+                        'language': 'en-US',
+                        'value': 'Logo description',
+                    },
+                },
+            },
+        }
+
+        # See below for more information on required properties
+        # https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+        loyalty_object = {
+            'id': f'{object_id}',
+            'classId': f'{issuer_id}.{class_suffix}',
+            'state': 'ACTIVE',
+            'heroImage': {
+                'sourceUri': {
+                    'uri':
+                        'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+                },
+                'contentDescription': {
+                    'defaultValue': {
+                        'language': 'en-US',
+                        'value': 'Hero image description',
+                    },
+                },
+            },
+            'textModulesData': [{
+                'header': 'Text module header',
+                'body': 'Text module body',
+                'id': 'TEXT_MODULE_ID',
+            },],
+            'linksModuleData': {
+                'uris': [
+                    {
+                        'uri': 'http://maps.google.com/',
+                        'description': 'Link module URI description',
+                        'id': 'LINK_MODULE_URI_ID',
+                    },
+                    {
+                        'uri': 'tel:6505555555',
+                        'description': 'Link module tel description',
+                        'id': 'LINK_MODULE_TEL_ID',
+                    },
+                ],
+            },
+            'imageModulesData': [{
+                'mainImage': {
+                    'sourceUri': {
+                        'uri':
+                            'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+                    },
+                    'contentDescription': {
+                        'defaultValue': {
+                            'language': 'en-US',
+                            'value': 'Image module description',
+                        },
+                    },
+                },
+                'id': 'IMAGE_MODULE_ID',
+            },],
+            'barcode': {
+                'type': 'QR_CODE',
+                'value': 'QR code',
+            },
+            'locations': [{
+                'latitude': 37.424015499999996,
+                'longitude': -122.09259560000001,
+            },],
+            'accountId': 'Account id',
+            'accountName': 'Account name',
+            'loyaltyPoints': {
+                'label': 'Points',
+                'balance': {
+                    'int': 800,
+                },
+            },
+        }
+
+        # Create the JWT claims
+        claims = {
+            'iss': self.credentials.service_account_email,
+            'aud': 'google',
+            'origins': ['www.example.com'],
+            'typ': 'savetowallet',
+            'payload': {
+                # The listed classes and objects will be created
+                'loyaltyClasses': [loyalty_class,],
+                'loyaltyObjects': [loyalty_object,],
+            },
+        }
+
+        # The service account credentials are used to sign the JWT
+        signer = crypt.RSASigner.from_service_account_file(self.key_file_path)
+        token = jwt.encode(signer, claims).decode('utf-8')
+
+        print('Add to Google Wallet link')
+        print(f'https://pay.google.com/gp/v/save/{token}')
+
+        return f'https://pay.google.com/gp/v/save/{token}'
+
+    # [END jwt]
+
+    # [START createIssuer]
+    def create_issuer_account(self, issuer_name: str, issuer_email: str):
+        """Create a new Google Wallet issuer account.
+
+        Args:
+            issuer_name (str): The issuer's name.
+            issuer_email (str): The issuer's email address.
+        """
+        # Issuer API endpoint
+        issuer_url = f'{self.base_url}/issuer'
+
+        # New issuer information
+        issuer = {
+            'name': issuer_name,
+            'contactInfo': {
+                'email': issuer_email,
+            },
+        }
+
+        # Make the POST request
+        response = self.http_client.post(
+            url=issuer_url,
+            json=issuer,
+        )
+
+        print('Issuer insert response')
+        print(response.text)
+
+    # [END createIssuer]
+
+    # [START updatePermissions]
+    def update_issuer_account_permissions(self, issuer_id: str,
+                                          permissions: List):
+        """Update permissions for an existing Google Wallet issuer account.
+
+        **Warning:** This operation overwrites all existing
+        permissions!
+
+        Example permissions list argument below. Copy the dict entry as
+        needed for each email address that will need access. Supported
+        values for role are: 'READER', 'WRITER', and 'OWNER'
+
+        permissions = [
             {
-                "kind": "walletobjects#latLongPoint",
-                "latitude": 37.424015499999996,
-                "longitude": -122.09259560000001
-            }
+                'emailAddress': 'email-address',
+                'role': 'OWNER',
+            },
         ]
-    }
 
-    data += "--batch_createobjectbatch\n"
-    data += "Content-Type: application/json\n\n"
-    data += "POST /walletobjects/v1/loyaltyObject/\n\n"
+        Args:
+            issuer_id (str): The issuer ID being used for this request.
+            permissions (List): The list of email addresses and roles to assign.
+        """
+        # Permissions API endpoint
+        permissions_url = f'{self.base_url}/permissions/{issuer_id}'
 
-    data += json.dumps(BATCH_OBJECT) + "\n\n"
+        response = self.http_client.put(
+            url=permissions_url,
+            json={
+                'issuerId': issuer_id,
+                'permissions': permissions,
+            },
+        )
 
-data += "--batch_createobjectbatch--"
+        print('Permissions update response')
+        print(response.text)
 
-# Invoke the batch API calls
-response = http_client.post(
-    "https://walletobjects.googleapis.com/batch",
-    data=data,
-    headers={
-        # `boundary` is the delimiter between API calls in the batch request
-        "Content-Type": "multipart/mixed; boundary=batch_createobjectbatch"
-    })
+    # [END updatePermissions]
 
-print(response.content.decode("UTF-8"))
-# [END batch]
+    # [START batch]
+    def batch_create_loyalty_objects(self, issuer_id: str, class_suffix: str):
+        """Batch create Google Wallet objects from an existing class.
+
+        The request body will be a multiline string. See below for information.
+
+        https://cloud.google.com/compute/docs/api/how-tos/batch#example
+
+        Args:
+            issuer_id (str): The issuer ID being used for this request.
+            class_suffix (str): Developer-defined unique ID for this pass class.
+        """
+        data = ''
+
+        # Example: Generate three new pass objects
+        for _ in range(3):
+            # Generate a random user ID
+            user_id = str(uuid.uuid4()).replace('[^\\w.-]', '_')
+
+            # Generate an object ID with the user ID
+            # Should only include alphanumeric characters, '.', '_', or '-'
+            object_id = f'{issuer_id}.{user_id}'
+
+            # See below for more information on required properties
+            # https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+            batch_loyalty_object = {
+                'id': f'{object_id}',
+                'classId': f'{issuer_id}.{class_suffix}',
+                'state': 'ACTIVE',
+                'heroImage': {
+                    'sourceUri': {
+                        'uri':
+                            'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+                    },
+                    'contentDescription': {
+                        'defaultValue': {
+                            'language': 'en-US',
+                            'value': 'Hero image description',
+                        },
+                    },
+                },
+                'textModulesData': [{
+                    'header': 'Text module header',
+                    'body': 'Text module body',
+                    'id': 'TEXT_MODULE_ID',
+                },],
+                'linksModuleData': {
+                    'uris': [
+                        {
+                            'uri': 'http://maps.google.com/',
+                            'description': 'Link module URI description',
+                            'id': 'LINK_MODULE_URI_ID',
+                        },
+                        {
+                            'uri': 'tel:6505555555',
+                            'description': 'Link module tel description',
+                            'id': 'LINK_MODULE_TEL_ID',
+                        },
+                    ],
+                },
+                'imageModulesData': [{
+                    'mainImage': {
+                        'sourceUri': {
+                            'uri':
+                                'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+                        },
+                        'contentDescription': {
+                            'defaultValue': {
+                                'language': 'en-US',
+                                'value': 'Image module description',
+                            },
+                        },
+                    },
+                    'id': 'IMAGE_MODULE_ID',
+                },],
+                'barcode': {
+                    'type': 'QR_CODE',
+                    'value': 'QR code',
+                },
+                'locations': [{
+                    'latitude': 37.424015499999996,
+                    'longitude': -122.09259560000001,
+                },],
+                'accountId': 'Account id',
+                'accountName': 'Account name',
+                'loyaltyPoints': {
+                    'label': 'Points',
+                    'balance': {
+                        'int': 800,
+                    },
+                },
+            }
+
+            data += '--batch_createobjectbatch\n'
+            data += 'Content-Type: application/json\n\n'
+            data += 'POST /walletobjects/v1/loyaltyObject/\n\n'
+
+            data += json.dumps(batch_loyalty_object) + '\n\n'
+
+        data += '--batch_createobjectbatch--'
+
+        # Invoke the batch API calls
+        response = self.http_client.post(
+            url='https://walletobjects.googleapis.com/batch',
+            data=data,
+            headers={
+                # `boundary` is the delimiter between API calls in the batch request
+                'Content-Type':
+                    'multipart/mixed; boundary=batch_createobjectbatch'
+            })
+
+        print('Batch insert response')
+        print(response.content.decode('UTF-8'))
+
+    # [END batch]
