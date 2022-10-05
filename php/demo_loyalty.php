@@ -17,315 +17,538 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-// [START setup]
-// [START imports]
-use Firebase\JWT\JWT;
-use Google\Auth\Credentials\ServiceAccountCredentials;
-use Google\Auth\Middleware\AuthTokenMiddleware;
-use Google\Client as Google_Client;
-use GuzzleHttp\Client;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Exception\ClientException;
-// [END imports]
-
-
-/*
- * keyFilePath - Path to service account key file from Google Cloud Console
- *             - Environment variable: GOOGLE_APPLICATION_CREDENTIALS
- */
-$keyFilePath = getenv('GOOGLE_APPLICATION_CREDENTIALS') ?: '/path/to/key.json';
-
-/*
- * issuerId - The issuer ID being updated in this request
- *          - Environment variable: WALLET_ISSUER_ID
- */
-$issuerId = getenv('WALLET_ISSUER_ID') ?: 'issuer-id';
-
-/*
- * classId - Developer-defined ID for the wallet class
- *         - Environment variable: WALLET_CLASS_ID
- */
-$classId = getenv('WALLET_CLASS_ID') ?: 'test-loyalty-class-id';
-
-/*
- * userId - Developer-defined ID for the user, such as an email address
- *        - Environment variable: WALLET_USER_ID
- */
-$userId = getenv('WALLET_USER_ID') ?: 'user-id';
-
-/*
- * objectId - ID for the wallet object
- *          - Format: `issuerId.identifier`
- *          - Should only include alphanumeric characters, '.', '_', or '-'
- *          - `identifier` is developer-defined and unique to the user
- */
-$objectId = "{$issuerId}." . preg_replace('/[^\w.-]/i', '_', $userId) . "-{$classId}";
-// [END setup]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create authenticated HTTP client, using service account file.
-///////////////////////////////////////////////////////////////////////////////
-
-// [START auth]
-$credentials = new ServiceAccountCredentials(
-  'https://www.googleapis.com/auth/wallet_object.issuer',
-  $keyFilePath
-);
-
-$middleware = new AuthTokenMiddleware($credentials);
-$stack = HandlerStack::create();
-$stack->push($middleware);
-$httpClient = new Client([
-  'handler' => $stack,
-  'auth' => 'google_auth'
-]);
-// [END auth]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create a class via the API (this can also be done in the business console).
-///////////////////////////////////////////////////////////////////////////////
-
-// [START class]
-$classUrl = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/";
-$classPayload = <<<EOD
-{
-  "id": "{$issuerId}.{$classId}",
-  "issuerName": "test issuer name",
-  "programName": "test program name",
-  "programLogo": {
-    "kind": "walletobjects#image",
-    "sourceUri": {
-      "kind": "walletobjects#uri",
-      "uri": "http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg"
-    }
-  },
-  "reviewStatus": "underReview"
-}
-EOD;
-
-$classResponse = $httpClient->post(
-  $classUrl,
-  ['json' => json_decode($classPayload)]
-);
-
-echo 'class POST response: ' . $classResponse->getBody();
-// [END class]
-
-///////////////////////////////////////////////////////////////////////////////
-// Get or create an object via the API.
-///////////////////////////////////////////////////////////////////////////////
-
-// [START object]
-$objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/";
-$objectPayload = <<<EOD
-{
-  "id": "{$objectId}",
-  "classId": "{$issuerId}.{$classId}",
-  "heroImage": {
-    "sourceUri": {
-      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-      "description": "Test heroImage description"
-    }
-  },
-  "textModulesData": [
-    {
-      "header": "Test text module header",
-      "body": "Test text module body"
-    }
-  ],
-  "linksModuleData": {
-    "uris": [
-      {
-        "kind": "walletobjects#uri",
-        "uri": "http://maps.google.com/",
-        "description": "Test link module uri description"
-      },
-      {
-        "kind": "walletobjects#uri",
-        "uri": "tel:6505555555",
-        "description": "Test link module tel description"
-      }
-    ]
-  },
-  "imageModulesData": [
-    {
-      "mainImage": {
-        "kind": "walletobjects#image",
-        "sourceUri": {
-          "kind": "walletobjects#uri",
-          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-          "description": "Test image module description"
-        }
-      }
-    }
-  ],
-  "barcode": {
-    "kind": "walletobjects#barcode",
-    "type": "qrCode",
-    "value": "Test QR Code"
-  },
-  "state": "active",
-  "accountId": "Test account id",
-  "accountName": "Test account name",
-  "loyaltyPoints": {
-    "balance": {
-      "string": "800"
-    },
-    "label": "Points"
-  },
-  "locations": [
-    {
-      "kind": "walletobjects#latLongPoint",
-      "latitude": 37.424015499999996,
-      "longitude": -122.09259560000001
-    }
-  ]
-}
-EOD;
-
-try {
-  $objectResponse = $httpClient->get($objectUrl . $objectId);
-} catch (ClientException $err) {
-  if ($err->getResponse()->getStatusCode() == 404) {
-    // Object does not yet exist
-    // Send POST request to create it
-    $objectResponse = $httpClient->post(
-      $objectUrl,
-      ['json' => json_decode($objectPayload)]
-    );
-  }
-}
-
-echo 'object GET or POST response: ' . $objectResponse->getBody();
-// [END object]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create a JWT for the object, and encode it to create a "Save" URL.
-///////////////////////////////////////////////////////////////////////////////
-
-// [START jwt]
-$serviceAccount = json_decode(file_get_contents($keyFilePath), true);
-$claims = [
-  'iss' => $serviceAccount['client_email'],
-  'aud' => 'google',
-  'origins' => ['www.example.com'],
-  'typ' => 'savetowallet',
-  'payload' => [
-    'loyaltyObjects' => [
-      ['id' => $objectId]
-    ]
-  ]
-];
-
-$token = JWT::encode($claims, $serviceAccount['private_key'], 'RS256');
-$saveUrl = "https://pay.google.com/gp/v/save/${token}";
-
-echo $saveUrl;
-// [END jwt]
-
-///////////////////////////////////////////////////////////////////////////////
-// Create a new Google Wallet issuer account
-///////////////////////////////////////////////////////////////////////////////
-
-// [START createIssuer]
-// New issuer name
-$issuerName = 'name';
-
-// New issuer email address
-$issuerEmail = 'email-address';
-
-// Issuer API endpoint
-$issuerUrl = 'https://walletobjects.googleapis.com/walletobjects/v1/issuer';
-
-// New issuer information
-$issuerPayload = <<<EOD
-{
-  "name": $issuerName,
-  "contactInfo": {
-    "email": $issuerEmail
-  }
-}
-EOD;
-
-$issuerResponse = $httpClient->post(
-  $issuerUrl,
-  ['json' => json_decode($issuerPayload)]
-);
-
-echo 'issuer POST response: ' .  $issuerResponse->getBody();
-// [END createIssuer]
-
-///////////////////////////////////////////////////////////////////////////////
-// Update permissions for an existing Google Wallet issuer account
-///////////////////////////////////////////////////////////////////////////////
-
-// [START updatePermissions]
-// Permissions API endpoint
-$permissionsUrl = "https://walletobjects.googleapis.com/walletobjects/v1/permissions/{$issuerId}";
-
-// New issuer permissions information
-// Copy objects in permissions as needed for each email that will need access
-$permissionsPayload = <<<EOD
-{
-  "issuerId": $issuerId,
-  "permissions": [
-    {
-      "emailAddress": "email-address",
-      "role": "READER | WRITER | OWNER"
-    },
-  ]
-}
-EOD;
-
-# Make the PUT request
-$permissionsResponse = $httpClient->put(
-  $permissionsUrl,
-  ['json' => json_decode($permissionsPayload)]
-);
-
-echo 'permissions PUT response: ' .  $permissionsResponse->getBody();
-// [END updatePermissions]
-
-///////////////////////////////////////////////////////////////////////////////
-// Batch create Google Wallet objects from an existing class
-///////////////////////////////////////////////////////////////////////////////
-
-//[START batch]
 // Download the PHP client library from the following URL
 // https://developers.google.com/wallet/generic/resources/libraries
 require __DIR__ . '/lib/Walletobjects.php';
 
-// The request body will be a multiline string
-// See below for more information
-// https://cloud.google.com/compute/docs/api/how-tos/batch#example
-$client = new Google_Client();
-$client->setApplicationName("APPLICATION_NAME");
-$client->setScopes("https://www.googleapis.com/auth/wallet_object.issuer");
-$client->setAuthConfig($keyFilePath);
-$client->setUseBatch(true);
+// [START setup]
+// [START imports]
+use Firebase\JWT\JWT;
+use Google\Auth\Credentials\ServiceAccountCredentials;
+use Google\Client as Google_Client;
+// [END imports]
 
-$service = new Google_Service_Walletobjects($client);
+/** Demo class for creating and managing Loyalty cards in Google Wallet. */
+class DemoLoyalty
+{
+  /**
+   * Path to service account key file from Google Cloud Console. Environment
+   * variable: GOOGLE_APPLICATION_CREDENTIALS.
+   */
+  public string $keyFilePath;
 
-$batch = $service->createBatch();
+  /**
+   * Service account credentials for Google Wallet APIs.
+   */
+  public ServiceAccountCredentials $credentials;
 
-// Example: Generate three new pass objects
-for ($i = 0; $i < 3; $i++) {
-  // Generate a random user ID
-  $userId = str_replace("[^\\w.-]", "_", uniqid());
+  /**
+   * Google Wallet service client.
+   */
+  public Google_Service_Walletobjects $service;
 
-  // Generate a random object ID with the user ID
-  $objectId = "$issuerId.$userId-$classId";
+  public function __construct()
+  {
+    $this->keyFilePath = getenv('GOOGLE_APPLICATION_CREDENTIALS') ?: '/path/to/key.json';
+  }
+  // [END setup]
 
-  $loyaltyObject = new Google_Service_Walletobjects_LoyaltyObject();
-  // See link below for more information on required properties
-  // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
-  $loyaltyObject->setId($objectId);
-  $loyaltyObject->setClassId("$issuerId.$classId");
-  $loyaltyObject->setState("ACTIVE");
+  // [START auth]
+  /**
+   * Create authenticated HTTP client using a service account file.
+   */
+  public function auth()
+  {
+    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
 
-  $batch->add($service->loyaltyobject->insert($loyaltyObject));
+    $this->credentials = new ServiceAccountCredentials(
+      $scope,
+      $this->keyFilePath
+    );
+
+    // Initialize Google Wallet API service
+    $this->client = new Google_Client();
+    $this->client->setApplicationName('APPLICATION_NAME');
+    $this->client->setScopes($scope);
+    $this->client->setAuthConfig($this->keyFilePath);
+
+    $this->service = new Google_Service_Walletobjects($this->client);
+  }
+  // [END auth]
+
+  // [START class]
+  /**
+   * Create a class via the API. This can also be done in the Google Pay and Wallet console.
+   *
+   * @param string $issuerId The issuer ID being used for this request.
+   * @param string $classSuffix Developer-defined unique ID for this pass class.
+   *
+   * @return string The pass class ID: "{$issuerId}.{$classSuffix}"
+   */
+  public function createLoyaltyClass(string $issuerId, string $classSuffix)
+  {
+    // See link below for more information on required properties
+    // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
+    $loyaltyClass = new Google_Service_Walletobjects_LoyaltyClass([
+      'id' => "{$issuerId}.{$classSuffix}",
+      'issuerName' => 'Issuer name',
+      'reviewStatus' => 'UNDER_REVIEW',
+      'programName' => 'Program name',
+      'programLogo' => new Google_Service_Walletobjects_Image([
+        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          'uri' => 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
+        ]),
+        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'language' => 'en-US',
+            'value' => 'Logo description',
+          ]),
+        ]),
+      ]),
+    ]);
+
+    try {
+      $response = $this->service->loyaltyclass->insert($loyaltyClass);
+
+      print "Class insert response\n";
+      print_r($response);
+
+      return $response->id;
+    } catch (Google\Service\Exception $ex) {
+      if ($ex->getCode() == 409) {
+        print "Class {$issuerId}.{$classSuffix} already exists";
+        return;
+      }
+
+      // Something else went wrong
+      print $ex->getTraceAsString();
+    }
+  }
+  // [END class]
+
+  // [START object]
+  /**
+   * Create an object via the API.
+   *
+   * @param string $issuerId The issuer ID being used for this request.
+   * @param string $classSuffix Developer-defined unique ID for this pass class.
+   * @param string $userId Developer-defined user ID for this pass object.
+   *
+   * @return string The pass object ID: "{$issuerId}.{$userId}"
+   */
+  public function createLoyaltyObject(string $issuerId, string $classSuffix, string $userId)
+  {
+    // Generate the object ID
+    // Should only include alphanumeric characters, '.', '_', or '-'
+    $newUserId = preg_replace('/[^\w.-]/i', '_', $userId);
+    $objectId = "{$issuerId}.{$newUserId}";
+
+    // See link below for more information on required properties
+    // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+    $loyaltyObject = new Google_Service_Walletobjects_LoyaltyObject([
+      'id' => "{$objectId}",
+      'classId' => "{$issuerId}.{$classSuffix}",
+      'state' => 'ACTIVE',
+      'heroImage' => new Google_Service_Walletobjects_Image([
+        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+        ]),
+        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'language' => 'en-US',
+            'value' => 'Hero image description',
+          ]),
+        ]),
+      ]),
+      'textModulesData' => [
+        new Google_Service_Walletobjects_TextModuleData([
+          'header' => 'Text module header',
+          'body' => 'Text module body',
+          'id' => 'TEXT_MODULE_ID',
+        ]),
+      ],
+      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'uris' => [
+          new Google_Service_Walletobjects_Uri([
+            'uri' => 'http://maps.google.com/',
+            'description' => 'Link module URI description',
+            'id' => 'LINK_MODULE_URI_ID',
+          ]),
+          new Google_Service_Walletobjects_Uri([
+            'uri' => 'tel:6505555555',
+            'description' => 'Link module tel description',
+            'id' => 'LINK_MODULE_TEL_ID',
+          ]),
+        ],
+      ]),
+      'imageModulesData' => [
+        new Google_Service_Walletobjects_ImageModuleData([
+          'mainImage' => new Google_Service_Walletobjects_Image([
+            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+              'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+            ]),
+            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+                'language' => 'en-US',
+                'value' => 'Image module description',
+              ]),
+            ]),
+          ]),
+          'id' => 'IMAGE_MODULE_ID',
+        ])
+      ],
+      'barcode' => new Google_Service_Walletobjects_Barcode([
+        'type' => 'QR_CODE',
+        'value' => 'QR code value',
+      ]),
+      'locations' => [
+        new Google_Service_Walletobjects_LatLongPoint([
+          'latitude' => 37.424015499999996,
+          'longitude' =>  -122.09259560000001,
+        ]),
+      ],
+      'accountId' => 'Account ID',
+      'accountName' => 'Account name',
+      'loyaltyPoints' => new Google_Service_Walletobjects_LoyaltyPoints([
+        'balance' => new Google_Service_Walletobjects_LoyaltyPointsBalance([
+          'int' => 800,
+        ]),
+      ]),
+    ]);
+
+    try {
+      $response = $this->service->loyaltyobject->insert($loyaltyObject);
+
+      print "Object insert response\n";
+      print_r($response);
+
+      return $response->id;
+    } catch (Google\Service\Exception $ex) {
+      if ($ex->getCode() == 409) {
+        print "Object {$objectId} already exists";
+        return;
+      }
+
+      // Something else went wrong
+      print $ex->getTraceAsString();
+    }
+  }
+  // [END object]
+
+  // [START jwt]
+  /**
+   * Generate a signed JWT that creates a new pass class and object.
+   *
+   * When the user opens the "Add to Google Wallet" URL and saves the pass to
+   * their wallet, the pass class and object defined in the JWT are
+   * created.This allows you to create multiple pass classes and objects in
+   * one API call when the user saves the pass to their wallet.
+   *
+   * @param string $issuerId The issuer ID being used for this request.
+   * @param string $classSuffix Developer-defined class ID for this class.
+   * @param string $userId Developer-defined user ID for this object.
+   *
+   * @return string An "Add to Google Wallet" link.
+   */
+  public function createJwtSaveUrl(string $issuerId, string $classSuffix, string $userId)
+  {
+    // Generate the object ID
+    // Should only include alphanumeric characters, '.', '_', or '-'
+    $newUserId = preg_replace('/[^\w.-]/i', '_', $userId);
+    $objectId = "{$issuerId}.{$newUserId}";
+
+    // See link below for more information on required properties
+    // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
+    $loyaltyClass = new Google_Service_Walletobjects_LoyaltyClass([
+      'id' => "{$issuerId}.{$classSuffix}",
+      'issuerName' => 'Issuer name',
+      'reviewStatus' => 'UNDER_REVIEW',
+      'programName' => 'Program name',
+      'programLogo' => new Google_Service_Walletobjects_Image([
+        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          'uri' => 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
+        ]),
+        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'language' => 'en-US',
+            'value' => 'Logo description',
+          ]),
+        ]),
+      ]),
+    ]);
+
+    // See link below for more information on required properties
+    // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+    $loyaltyObject = new Google_Service_Walletobjects_LoyaltyObject([
+      'id' => "{$objectId}",
+      'classId' => "{$issuerId}.{$classSuffix}",
+      'state' => 'ACTIVE',
+      'heroImage' => new Google_Service_Walletobjects_Image([
+        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+        ]),
+        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'language' => 'en-US',
+            'value' => 'Hero image description',
+          ]),
+        ]),
+      ]),
+      'textModulesData' => [
+        new Google_Service_Walletobjects_TextModuleData([
+          'header' => 'Text module header',
+          'body' => 'Text module body',
+          'id' => 'TEXT_MODULE_ID',
+        ]),
+      ],
+      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'uris' => [
+          new Google_Service_Walletobjects_Uri([
+            'uri' => 'http://maps.google.com/',
+            'description' => 'Link module URI description',
+            'id' => 'LINK_MODULE_URI_ID',
+          ]),
+          new Google_Service_Walletobjects_Uri([
+            'uri' => 'tel:6505555555',
+            'description' => 'Link module tel description',
+            'id' => 'LINK_MODULE_TEL_ID',
+          ]),
+        ],
+      ]),
+      'imageModulesData' => [
+        new Google_Service_Walletobjects_ImageModuleData([
+          'mainImage' => new Google_Service_Walletobjects_Image([
+            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+              'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+            ]),
+            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+                'language' => 'en-US',
+                'value' => 'Image module description',
+              ]),
+            ]),
+          ]),
+          'id' => 'IMAGE_MODULE_ID',
+        ])
+      ],
+      'barcode' => new Google_Service_Walletobjects_Barcode([
+        'type' => 'QR_CODE',
+        'value' => 'QR code value',
+      ]),
+      'locations' => [
+        new Google_Service_Walletobjects_LatLongPoint([
+          'latitude' => 37.424015499999996,
+          'longitude' =>  -122.09259560000001,
+        ]),
+      ],
+      'accountId' => 'Account ID',
+      'accountName' => 'Account name',
+      'loyaltyPoints' => new Google_Service_Walletobjects_LoyaltyPoints([
+        'balance' => new Google_Service_Walletobjects_LoyaltyPointsBalance([
+          'int' => 800,
+        ]),
+      ]),
+    ]);
+
+    // Create the JWT as an array of key/value pairs
+    $serviceAccount = json_decode(file_get_contents($this->keyFilePath), true);
+    $claims = [
+      'iss' => $serviceAccount['client_email'],
+      'aud' => 'google',
+      'origins' => ['www.example.com'],
+      'typ' => 'savetowallet',
+      'payload' => [
+        'loyaltyClasses' => [
+          $loyaltyClass,
+        ],
+        'loyaltyObjects' => [
+          $loyaltyObject,
+        ],
+      ],
+    ];
+
+    // The service account credentials are used to sign the JWT
+    $token = JWT::encode(
+      $claims,
+      $serviceAccount['private_key'],
+      'RS256'
+    );
+
+    print "Add to Google Wallet link\n";
+    print "https://pay.google.com/gp/v/save/{$token}";
+
+    return "https://pay.google.com/gp/v/save/{$token}";
+  }
+  // [END jwt]
+
+  // [START createIssuer]
+  /**
+   * Create a new Google Wallet issuer account.
+   *
+   * @param string $issuerName The issuer's name.
+   * @param string $issuerEmail The issuer's email address.
+   */
+  public function createIssuerAccount(string $issuerName, string $issuerEmail)
+  {
+    // New issuer information
+    $issuer = new Google_Service_Walletobjects_Issuer([
+      'name' => $issuerName,
+      'contactInfo' => new Google_Service_Walletobjects_IssuerContactInfo([
+        'email' => $issuerEmail,
+      ]),
+    ]);
+
+    $response = $this->service->issuer->insert($issuer);
+
+    print "Issuer insert response\n";
+    print_r($response);
+  }
+  // [END createIssuer]
+
+  // [START updatePermissions]
+  /**
+   * Update permissions for an existing Google Wallet issuer account.
+   * **Warning:** This operation overwrites all existing permissions!
+   *
+   * Example permissions list argument below. Copy the entry as
+   * needed for each email address that will need access. Supported
+   * values for role are: 'READER', 'WRITER', and 'OWNER'
+   *
+   * $permissions = array(
+   *  new Google_Service_Walletobjects_Permission([
+   *    'emailAddress' => 'email-address',
+   *    'role' => 'OWNER',
+   *  ]),
+   * );
+   *
+   * @param string $issuerId The issuer ID being used for this request.
+   * @param array $permissions The list of email addresses and roles to assign.
+   */
+  public function updateIssuerAccountPermissions(string $issuerId, array $permissions)
+  {
+    // Make the PUT request
+    $response = $this->service->permissions->update(
+      $issuerId,
+      new Google_Service_Walletobjects_Permissions([
+        'issuerId' => $issuerId,
+        'permissions' => $permissions,
+      ])
+    );
+
+    print "Permissions update response\n";
+    print_r($response);
+  }
+  // [END updatePermissions]
+
+  // [START batch]
+  /**
+   * Batch create Google Wallet objects from an existing class.
+   *
+   * @param string $issuerId The issuer ID being used for this request.
+   * @param string $classSuffix Developer-defined class ID for this class.
+   */
+  public function batchCreateLoyaltyObjects(string $issuerId, string $classSuffix)
+  {
+    // Update the client to enable batch requests
+    $this->client->setUseBatch(true);
+    $batch = $this->service->createBatch();
+
+    // Example: Generate three new pass objects
+    for ($i = 0; $i < 3; $i++) {
+      // Generate a random user ID
+      $userId = preg_replace('/[^\w.-]/i', '_', uniqid());
+
+      // Generate a random object ID with the user ID
+      // Should only include alphanumeric characters, '.', '_', or '-'
+      $objectId = "{$issuerId}.{$userId}";
+
+      // See link below for more information on required properties
+      // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
+      $loyaltyObject = new Google_Service_Walletobjects_LoyaltyObject([
+        'id' => "{$objectId}",
+        'classId' => "{$issuerId}.{$classSuffix}",
+        'state' => 'ACTIVE',
+        'heroImage' => new Google_Service_Walletobjects_Image([
+          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+            'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+          ]),
+          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+              'language' => 'en-US',
+              'value' => 'Hero image description',
+            ]),
+          ]),
+        ]),
+        'textModulesData' => [
+          new Google_Service_Walletobjects_TextModuleData([
+            'header' => 'Text module header',
+            'body' => 'Text module body',
+            'id' => 'TEXT_MODULE_ID',
+          ]),
+        ],
+        'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+          'uris' => [
+            new Google_Service_Walletobjects_Uri([
+              'uri' => 'http://maps.google.com/',
+              'description' => 'Link module URI description',
+              'id' => 'LINK_MODULE_URI_ID',
+            ]),
+            new Google_Service_Walletobjects_Uri([
+              'uri' => 'tel:6505555555',
+              'description' => 'Link module tel description',
+              'id' => 'LINK_MODULE_TEL_ID',
+            ]),
+          ],
+        ]),
+        'imageModulesData' => [
+          new Google_Service_Walletobjects_ImageModuleData([
+            'mainImage' => new Google_Service_Walletobjects_Image([
+              'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+                'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+              ]),
+              'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
+                  'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+                    'language' => 'en-US',
+                    'value' => 'Image module description',
+                  ]),
+                ]),
+            ]),
+            'id' => 'IMAGE_MODULE_ID',
+          ])
+        ],
+        'barcode' => new Google_Service_Walletobjects_Barcode([
+          'type' => 'QR_CODE',
+          'value' => 'QR code value',
+        ]),
+        'locations' => [
+          new Google_Service_Walletobjects_LatLongPoint([
+            'latitude' => 37.424015499999996,
+            'longitude' =>  -122.09259560000001,
+          ]),
+        ],
+        'accountId' => 'Account ID',
+        'accountName' => 'Account name',
+        'loyaltyPoints' => new Google_Service_Walletobjects_LoyaltyPoints([
+          'balance' => new Google_Service_Walletobjects_LoyaltyPointsBalance([
+            'int' => 800,
+          ]),
+        ]),
+      ]);
+
+      $batch->add($this->service->loyaltyobject->insert($loyaltyObject));
+    }
+
+    // Make the batch request
+    $batchResponse = $batch->execute();
+
+    print "Batch insert response\n";
+    foreach ($batchResponse as $key => $value) {
+      if ($value instanceof Google_Service_Exception) {
+        print_r($value->getErrors());
+        continue;
+      }
+      print "{$value->getId()}\n";
+    }
+  }
+  // [END batch]
 }
-$results = $batch->execute();
-
-print_r($results);
-// [END batch]

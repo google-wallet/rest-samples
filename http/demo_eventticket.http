@@ -1,103 +1,124 @@
-# [START object]
-POST /walletobjects/v1/eventTicketObject HTTP/1.1
+# [START class]
+POST /walletobjects/v1/eventTicketClass HTTP/1.1
 Host: walletobjects.googleapis.com
 Content-Type: application/json
-Authorization: Bearer <ACCESS_TOKEN>;
+Authorization: Bearer ACCESS_TOKEN;
 Accept-Language: en-us
 Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "id": "issuer-id.user-id",
-  "classId": "issuer-id.class-id",
+  "id": "ISSUER_ID.CLASS_SUFFIX",
+  "issuerName": "Issuer name",
+  "reviewStatus": "UNDER_REVIEW",
+  "eventName": {
+      "defaultValue": {
+          "language": "en-US",
+          "value": "Event name"
+      }
+  }
+}
+# [END class]
+
+# [START object]
+POST /walletobjects/v1/eventTicketObject HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: application/json
+Authorization: Bearer ACCESS_TOKEN;
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+
+{
+  "id": "ISSUER_ID.OBJECT_ID",
+  "classId": "ISSUER_ID.CLASS_SUFFIX",
+  "state": "ACTIVE",
   "heroImage": {
     "sourceUri": {
-      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
-      "description": "Test heroImage description"
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Hero image description"
+      }
     }
   },
   "textModulesData": [
     {
-      "header": "Test text module header",
-      "body": "Test text module body"
+      "header": "Text module header",
+      "body": "Text module body",
+      "id": "TEXT_MODULE_ID"
     }
   ],
   "linksModuleData": {
     "uris": [
       {
-        "kind": "walletobjects#uri",
         "uri": "http://maps.google.com/",
-        "description": "Test link module uri description"
+        "description": "Link module URI description",
+        "id": "LINK_MODULE_URI_ID"
       },
       {
-        "kind": "walletobjects#uri",
         "uri": "tel:6505555555",
-        "description": "Test link module tel description"
+        "description": "Link module tel description",
+        "id": "LINK_MODULE_TEL_ID"
       }
     ]
   },
   "imageModulesData": [
     {
       "mainImage": {
-        "kind": "walletobjects#image",
         "sourceUri": {
-          "kind": "walletobjects#uri",
-          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
-          "description": "Test image module description"
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
+        },
+        "contentDescription": {
+          "defaultValue": {
+            "language": "en-US",
+            "value": "Image module description"
+          }
         }
-      }
+      },
+      "id": "IMAGE_MODULE_ID"
     }
   ],
   "barcode": {
-    "kind": "walletobjects#barcode",
-    "type": "qrCode",
-    "value": "Test QR Code"
+    "type": "QR_CODE",
+    "value": "QR code"
   },
-  "state": "active",
+  "locations": [
+    {
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ],
   "seatInfo": {
-    "kind": "walletobjects#eventSeat",
     "seat": {
-      "kind": "walletobjects#localizedString",
       "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
+        "language": "en-US",
         "value": "42"
       }
     },
     "row": {
-      "kind": "walletobjects#localizedString",
       "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
+        "language": "en-US",
         "value": "G3"
       }
     },
     "section": {
-      "kind": "walletobjects#localizedString",
       "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
+        "language": "en-US",
         "value": "5"
       }
     },
     "gate": {
-      "kind": "walletobjects#localizedString",
       "defaultValue": {
-        "kind": "walletobjects#translatedString",
-        "language": "en-us",
+        "language": "en-US",
         "value": "A"
       }
     }
   },
-  "ticketHolderName": "Test ticket holder name",
-  "ticketNumber": "Test ticket number",
-  "locations": [
-    {
-      "kind": "walletobjects#latLongPoint",
-      "latitude": 37.424015499999996,
-      "longitude": -122.09259560000001
-    }
-  ]
+  "ticketHolderName": "Ticket holder name",
+  "ticketNumber": "Ticket number"
 }
 # [END object]
 
@@ -105,35 +126,336 @@ Connection: Keep-Alive
 POST /walletobjects/v1/issuer HTTP/1.1
 Host: walletobjects.googleapis.com
 Content-Type: application/json
-Authorization: Bearer <ACCESS_TOKEN>;
+Authorization: Bearer ACCESS_TOKEN;
 Accept-Language: en-us
 Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "name": "name",
+  "name": "ISSUER_NAME",
   "contactInfo": {
-    "email": "email-address"
+    "email": "ISSUER_EMAIL"
   }
 }
 # [END createIssuer]
 
 # [START updatePermissions]
-PUT /walletobjects/v1/permissions/issuer-id HTTP/1.1
+PUT /walletobjects/v1/permissions/ISSUER_ID HTTP/1.1
 Host: walletobjects.googleapis.com
 Content-Type: application/json
-Authorization: Bearer <ACCESS_TOKEN>;
+Authorization: Bearer ACCESS_TOKEN;
 Accept-Language: en-us
 Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 
 {
-  "issuerId": "issuer-id",
+  "issuerId": "ISSUER_ID",
   "permissions": [
     {
-      emailAddress = "email-address",
+      emailAddress = "EMAIL_ADDRESS",
       role = "READER | WRITER | OWNER"
     }
   ]
 }
 # [END updatePermissions]
+
+# [START batch]
+POST /batch HTTP/1.1
+Host: walletobjects.googleapis.com
+Content-Type: multipart/mixed; boundary=batch_createobjectbatch
+Authorization: Bearer ACCESS_TOKEN
+Content-Length: TOTAL_CONTENT_LENGTH
+
+--batch_createobjectbatch
+Content-Type: application/json
+
+POST /walletobjects/v1/eventTicketObject/
+
+{
+  "id": "ISSUER_ID.OBJECT_ID",
+  "classId": "ISSUER_ID.CLASS_SUFFIX",
+  "state": "ACTIVE",
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Hero image description"
+      }
+    }
+  },
+  "textModulesData": [
+    {
+      "header": "Text module header",
+      "body": "Text module body",
+      "id": "TEXT_MODULE_ID"
+    }
+  ],
+  "linksModuleData": {
+    "uris": [
+      {
+        "uri": "http://maps.google.com/",
+        "description": "Link module URI description",
+        "id": "LINK_MODULE_URI_ID"
+      },
+      {
+        "uri": "tel:6505555555",
+        "description": "Link module tel description",
+        "id": "LINK_MODULE_TEL_ID"
+      }
+    ]
+  },
+  "imageModulesData": [
+    {
+      "mainImage": {
+        "sourceUri": {
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
+        },
+        "contentDescription": {
+          "defaultValue": {
+            "language": "en-US",
+            "value": "Image module description"
+          }
+        }
+      },
+      "id": "IMAGE_MODULE_ID"
+    }
+  ],
+  "barcode": {
+    "type": "QR_CODE",
+    "value": "QR code"
+  },
+  "locations": [
+    {
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ],
+  "seatInfo": {
+    "seat": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "42"
+      }
+    },
+    "row": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "G3"
+      }
+    },
+    "section": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "5"
+      }
+    },
+    "gate": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "A"
+      }
+    }
+  },
+  "ticketHolderName": "Ticket holder name",
+  "ticketNumber": "Ticket number"
+}
+
+--batch_createobjectbatch
+Content-Type: application/json
+
+POST /walletobjects/v1/eventTicketObject/
+
+{
+  "id": "ISSUER_ID.OBJECT_ID",
+  "classId": "ISSUER_ID.CLASS_SUFFIX",
+  "state": "ACTIVE",
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Hero image description"
+      }
+    }
+  },
+  "textModulesData": [
+    {
+      "header": "Text module header",
+      "body": "Text module body",
+      "id": "TEXT_MODULE_ID"
+    }
+  ],
+  "linksModuleData": {
+    "uris": [
+      {
+        "uri": "http://maps.google.com/",
+        "description": "Link module URI description",
+        "id": "LINK_MODULE_URI_ID"
+      },
+      {
+        "uri": "tel:6505555555",
+        "description": "Link module tel description",
+        "id": "LINK_MODULE_TEL_ID"
+      }
+    ]
+  },
+  "imageModulesData": [
+    {
+      "mainImage": {
+        "sourceUri": {
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
+        },
+        "contentDescription": {
+          "defaultValue": {
+            "language": "en-US",
+            "value": "Image module description"
+          }
+        }
+      },
+      "id": "IMAGE_MODULE_ID"
+    }
+  ],
+  "barcode": {
+    "type": "QR_CODE",
+    "value": "QR code"
+  },
+  "locations": [
+    {
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ],
+  "seatInfo": {
+    "seat": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "42"
+      }
+    },
+    "row": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "G3"
+      }
+    },
+    "section": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "5"
+      }
+    },
+    "gate": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "A"
+      }
+    }
+  },
+  "ticketHolderName": "Ticket holder name",
+  "ticketNumber": "Ticket number"
+}
+
+--batch_createobjectbatch
+Content-Type: application/json
+
+POST /walletobjects/v1/eventTicketObject/
+
+{
+  "id": "ISSUER_ID.OBJECT_ID",
+  "classId": "ISSUER_ID.CLASS_SUFFIX",
+  "state": "ACTIVE",
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Hero image description"
+      }
+    }
+  },
+  "textModulesData": [
+    {
+      "header": "Text module header",
+      "body": "Text module body",
+      "id": "TEXT_MODULE_ID"
+    }
+  ],
+  "linksModuleData": {
+    "uris": [
+      {
+        "uri": "http://maps.google.com/",
+        "description": "Link module URI description",
+        "id": "LINK_MODULE_URI_ID"
+      },
+      {
+        "uri": "tel:6505555555",
+        "description": "Link module tel description",
+        "id": "LINK_MODULE_TEL_ID"
+      }
+    ]
+  },
+  "imageModulesData": [
+    {
+      "mainImage": {
+        "sourceUri": {
+          "uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
+        },
+        "contentDescription": {
+          "defaultValue": {
+            "language": "en-US",
+            "value": "Image module description"
+          }
+        }
+      },
+      "id": "IMAGE_MODULE_ID"
+    }
+  ],
+  "barcode": {
+    "type": "QR_CODE",
+    "value": "QR code"
+  },
+  "locations": [
+    {
+      "latitude": 37.424015499999996,
+      "longitude": -122.09259560000001
+    }
+  ],
+  "seatInfo": {
+    "seat": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "42"
+      }
+    },
+    "row": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "G3"
+      }
+    },
+    "section": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "5"
+      }
+    },
+    "gate": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "A"
+      }
+    }
+  },
+  "ticketHolderName": "Ticket holder name",
+  "ticketNumber": "Ticket number"
+}
+
+--batch_createobjectbatch--
+# [END batch]
