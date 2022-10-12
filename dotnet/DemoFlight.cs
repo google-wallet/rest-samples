@@ -66,7 +66,8 @@ class DemoFlight
   {
     credentials = (ServiceAccountCredential)GoogleCredential
         .FromFile(keyFilePath)
-        .CreateScoped(new[] {
+        .CreateScoped(new[]
+        {
           "https://www.googleapis.com/auth/wallet_object.issuer"
         })
         .UnderlyingCredential;

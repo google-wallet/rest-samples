@@ -8,13 +8,13 @@ creating a pass class, updating issuer permissions, and more.
 
 | Pass type | File |
 |-----------|------|
-| Event tickets | [DemoEventTicket.cs](./DemoEventTicket.cs) |
-| Flight boarding passes | [DemoFlight.cs](./DemoFlight.cs) |
-| Generic passes | [DemoGeneric.cs](./DemoGeneric.cs) |
-| Gift cards | [DemoGiftCard.cs](./DemoGiftCard.cs) |
-| Loyalty program membership | [DemoLoyalty.cs](./DemoLoyalty.cs) |
-| Offers and promotions | [DemoOffer.cs](./DemoOffer.cs) |
-| Transit passes | [DemoTransit.cs](./DemoTransit.cs) |
+| Event tickets | [DemoEventTicket.java](./src/main/java/DemoEventTicket.java) |
+| Flight boarding passes | [DemoFlight.java](./src/main/java/DemoFlight.java) |
+| Generic passes | [DemoGeneric.java](./src/main/java/DemoGeneric.java) |
+| Gift cards | [DemoGiftCard.java](./src/main/java/DemoGiftCard.java) |
+| Loyalty program membership | [DemoLoyalty.java](./src/main/java/DemoLoyalty.java) |
+| Offers and promotions | [DemoOffer.java](./src/main/java/DemoOffer.java) |
+| Transit passes | [DemoTransit.java](./src/main/java/DemoTransit.java) |
 
 ## Prerequisites
 

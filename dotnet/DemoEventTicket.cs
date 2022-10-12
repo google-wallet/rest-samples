@@ -66,7 +66,8 @@ class DemoEventTicket
   {
     credentials = (ServiceAccountCredential)GoogleCredential
         .FromFile(keyFilePath)
-        .CreateScoped(new[] {
+        .CreateScoped(new[]
+        {
           "https://www.googleapis.com/auth/wallet_object.issuer"
         })
         .UnderlyingCredential;
@@ -190,8 +191,10 @@ class DemoEventTicket
               }
             }
           },
-          TextModulesData = new List<TextModuleData> {
-            new TextModuleData {
+          TextModulesData = new List<TextModuleData>
+          {
+            new TextModuleData
+            {
               Header = "Text module header",
               Body = "Text module body",
               Id = "TEXT_MODULE_ID"
@@ -199,27 +202,36 @@ class DemoEventTicket
           },
           LinksModuleData = new LinksModuleData
           {
-            Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri> {
-              new Google.Apis.Walletobjects.v1.Data.Uri {
+            Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri>
+            {
+              new Google.Apis.Walletobjects.v1.Data.Uri
+              {
                 UriValue = "http://maps.google.com/",
                 Description = "Link module URI description",
                 Id = "LINK_MODULE_URI_ID"
               },
-              new Google.Apis.Walletobjects.v1.Data.Uri {
+              new Google.Apis.Walletobjects.v1.Data.Uri
+              {
                 UriValue = "tel:6505555555",
                 Description = "Link module tel description",
                 Id = "LINK_MODULE_TEL_ID"
               }
             }
           },
-          ImageModulesData = new List<ImageModuleData> {
-            new ImageModuleData {
-              MainImage = new Image {
-                SourceUri = new ImageUri {
+          ImageModulesData = new List<ImageModuleData>
+          {
+            new ImageModuleData
+            {
+              MainImage = new Image
+              {
+                SourceUri = new ImageUri
+                {
                   Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
                 },
-                ContentDescription = new LocalizedString {
-                  DefaultValue = new TranslatedString {
+                ContentDescription = new LocalizedString
+                {
+                  DefaultValue = new TranslatedString
+                  {
                     Language = "en-US",
                     Value = "Image module description"
                   }
@@ -233,8 +245,10 @@ class DemoEventTicket
             Type = "QR_CODE",
             Value = "QR code"
           },
-          Locations = new List<LatLongPoint> {
-            new LatLongPoint {
+          Locations = new List<LatLongPoint>
+          {
+            new LatLongPoint
+            {
               Latitude = 37.424015499999996,
               Longitude = -122.09259560000001
             }
@@ -384,8 +398,10 @@ class DemoEventTicket
           }
         }
       },
-      TextModulesData = new List<TextModuleData> {
-        new TextModuleData {
+      TextModulesData = new List<TextModuleData>
+      {
+        new TextModuleData
+        {
           Header = "Text module header",
           Body = "Text module body",
           Id = "TEXT_MODULE_ID"
@@ -393,27 +409,36 @@ class DemoEventTicket
       },
       LinksModuleData = new LinksModuleData
       {
-        Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri> {
-          new Google.Apis.Walletobjects.v1.Data.Uri {
+        Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri>
+        {
+          new Google.Apis.Walletobjects.v1.Data.Uri
+          {
             UriValue = "http://maps.google.com/",
             Description = "Link module URI description",
             Id = "LINK_MODULE_URI_ID"
           },
-          new Google.Apis.Walletobjects.v1.Data.Uri {
+          new Google.Apis.Walletobjects.v1.Data.Uri
+          {
             UriValue = "tel:6505555555",
             Description = "Link module tel description",
             Id = "LINK_MODULE_TEL_ID"
           }
         }
       },
-      ImageModulesData = new List<ImageModuleData> {
-        new ImageModuleData {
-          MainImage = new Image {
-            SourceUri = new ImageUri {
+      ImageModulesData = new List<ImageModuleData>
+      {
+        new ImageModuleData
+        {
+          MainImage = new Image
+          {
+            SourceUri = new ImageUri
+            {
               Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
             },
-            ContentDescription = new LocalizedString {
-              DefaultValue = new TranslatedString {
+            ContentDescription = new LocalizedString
+            {
+              DefaultValue = new TranslatedString
+              {
                 Language = "en-US",
                 Value = "Image module description"
               }
@@ -427,8 +452,10 @@ class DemoEventTicket
         Type = "QR_CODE",
         Value = "QR code"
       },
-      Locations = new List<LatLongPoint> {
-        new LatLongPoint {
+      Locations = new List<LatLongPoint>
+      {
+        new LatLongPoint
+        {
           Latitude = 37.424015499999996,
           Longitude = -122.09259560000001
         }
@@ -481,7 +508,8 @@ class DemoEventTicket
     {
       iss = credentials.Id,
       aud = "google",
-      origins = new string[] {
+      origins = new string[]
+      {
         "www.example.com"
       },
       typ = "savetowallet",
@@ -489,10 +517,12 @@ class DemoEventTicket
       {
         // The listed classes and objects will be created
         // when the user saves the pass to their wallet
-        eventTicketClasses = new JObject[] {
+        eventTicketClasses = new JObject[]
+        {
           serializedClass
         },
-        eventTicketObjects = new JObject[] {
+        eventTicketObjects = new JObject[]
+        {
           serializedObject
         }
       })),
@@ -626,8 +656,10 @@ class DemoEventTicket
             }
           }
         },
-        TextModulesData = new List<TextModuleData> {
-          new TextModuleData {
+        TextModulesData = new List<TextModuleData>
+        {
+          new TextModuleData
+          {
             Header = "Text module header",
             Body = "Text module body",
             Id = "TEXT_MODULE_ID"
@@ -635,27 +667,36 @@ class DemoEventTicket
         },
         LinksModuleData = new LinksModuleData
         {
-          Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri> {
-            new Google.Apis.Walletobjects.v1.Data.Uri {
+          Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri>
+          {
+            new Google.Apis.Walletobjects.v1.Data.Uri
+            {
               UriValue = "http://maps.google.com/",
               Description = "Link module URI description",
               Id = "LINK_MODULE_URI_ID"
             },
-            new Google.Apis.Walletobjects.v1.Data.Uri {
+            new Google.Apis.Walletobjects.v1.Data.Uri
+            {
               UriValue = "tel:6505555555",
               Description = "Link module tel description",
               Id = "LINK_MODULE_TEL_ID"
             }
           }
         },
-        ImageModulesData = new List<ImageModuleData> {
-          new ImageModuleData {
-            MainImage = new Image {
-              SourceUri = new ImageUri {
+        ImageModulesData = new List<ImageModuleData>
+        {
+          new ImageModuleData
+          {
+            MainImage = new Image
+            {
+              SourceUri = new ImageUri
+              {
                 Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
               },
-              ContentDescription = new LocalizedString {
-                DefaultValue = new TranslatedString {
+              ContentDescription = new LocalizedString
+              {
+                DefaultValue = new TranslatedString
+                {
                   Language = "en-US",
                   Value = "Image module description"
                 }
@@ -669,8 +710,10 @@ class DemoEventTicket
           Type = "QR_CODE",
           Value = "QR code"
         },
-        Locations = new List<LatLongPoint> {
-          new LatLongPoint {
+        Locations = new List<LatLongPoint>
+        {
+          new LatLongPoint
+          {
             Latitude = 37.424015499999996,
             Longitude = -122.09259560000001
           }

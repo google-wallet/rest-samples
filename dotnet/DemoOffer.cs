@@ -66,7 +66,8 @@ class DemoOffer
   {
     credentials = (ServiceAccountCredential)GoogleCredential
         .FromFile(keyFilePath)
-        .CreateScoped(new[] {
+        .CreateScoped(new[]
+        {
           "https://www.googleapis.com/auth/wallet_object.issuer"
         })
         .UnderlyingCredential;
@@ -186,67 +187,67 @@ class DemoOffer
             }
           },
           TextModulesData = new List<TextModuleData>
-        {
-          new TextModuleData
           {
-            Header = "Text module header",
-            Body = "Text module body",
-            Id = "TEXT_MODULE_ID"
-          }
-        },
+            new TextModuleData
+            {
+              Header = "Text module header",
+              Body = "Text module body",
+              Id = "TEXT_MODULE_ID"
+            }
+          },
           LinksModuleData = new LinksModuleData
           {
             Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri>
-          {
-            new Google.Apis.Walletobjects.v1.Data.Uri
             {
-              UriValue = "http://maps.google.com/",
-              Description = "Link module URI description",
-              Id = "LINK_MODULE_URI_ID"
-            },
-            new Google.Apis.Walletobjects.v1.Data.Uri
-            {
-              UriValue = "tel:6505555555",
-              Description = "Link module tel description",
-              Id = "LINK_MODULE_TEL_ID"
+              new Google.Apis.Walletobjects.v1.Data.Uri
+              {
+                UriValue = "http://maps.google.com/",
+                Description = "Link module URI description",
+                Id = "LINK_MODULE_URI_ID"
+              },
+              new Google.Apis.Walletobjects.v1.Data.Uri
+              {
+                UriValue = "tel:6505555555",
+                Description = "Link module tel description",
+                Id = "LINK_MODULE_TEL_ID"
+              }
             }
-          }
           },
           ImageModulesData = new List<ImageModuleData>
-        {
-          new ImageModuleData
           {
-            MainImage = new Image
+            new ImageModuleData
             {
-              SourceUri = new ImageUri
+              MainImage = new Image
               {
-                Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-              },
-              ContentDescription = new LocalizedString
-              {
-                DefaultValue = new TranslatedString
+                SourceUri = new ImageUri
                 {
-                  Language = "en-US",
-                  Value = "Image module description"
+                  Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
+                },
+                ContentDescription = new LocalizedString
+                {
+                  DefaultValue = new TranslatedString
+                  {
+                    Language = "en-US",
+                    Value = "Image module description"
+                  }
                 }
-              }
-            },
-            Id = "IMAGE_MODULE_ID"
-          }
-        },
+              },
+              Id = "IMAGE_MODULE_ID"
+            }
+          },
           Barcode = new Barcode
           {
             Type = "QR_CODE",
             Value = "QR code"
           },
           Locations = new List<LatLongPoint>
-        {
-          new LatLongPoint
           {
-            Latitude = 37.424015499999996,
-            Longitude = -122.09259560000001
-          }
-        },
+            new LatLongPoint
+            {
+              Latitude = 37.424015499999996,
+              Longitude = -122.09259560000001
+            }
+          },
           ValidTimeInterval = new TimeInterval
           {
             Start = new Google.Apis.Walletobjects.v1.Data.DateTime
@@ -361,67 +362,67 @@ class DemoOffer
         }
       },
       TextModulesData = new List<TextModuleData>
+      {
+        new TextModuleData
         {
-          new TextModuleData
-          {
-            Header = "Text module header",
-            Body = "Text module body",
-            Id = "TEXT_MODULE_ID"
-          }
-        },
+          Header = "Text module header",
+          Body = "Text module body",
+          Id = "TEXT_MODULE_ID"
+        }
+      },
       LinksModuleData = new LinksModuleData
       {
         Uris = new List<Google.Apis.Walletobjects.v1.Data.Uri>
+        {
+          new Google.Apis.Walletobjects.v1.Data.Uri
           {
-            new Google.Apis.Walletobjects.v1.Data.Uri
-            {
-              UriValue = "http://maps.google.com/",
-              Description = "Link module URI description",
-              Id = "LINK_MODULE_URI_ID"
-            },
-            new Google.Apis.Walletobjects.v1.Data.Uri
-            {
-              UriValue = "tel:6505555555",
-              Description = "Link module tel description",
-              Id = "LINK_MODULE_TEL_ID"
-            }
+            UriValue = "http://maps.google.com/",
+            Description = "Link module URI description",
+            Id = "LINK_MODULE_URI_ID"
+          },
+          new Google.Apis.Walletobjects.v1.Data.Uri
+          {
+            UriValue = "tel:6505555555",
+            Description = "Link module tel description",
+            Id = "LINK_MODULE_TEL_ID"
           }
+        }
       },
       ImageModulesData = new List<ImageModuleData>
+      {
+        new ImageModuleData
         {
-          new ImageModuleData
+          MainImage = new Image
           {
-            MainImage = new Image
+            SourceUri = new ImageUri
             {
-              SourceUri = new ImageUri
-              {
-                Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-              },
-              ContentDescription = new LocalizedString
-              {
-                DefaultValue = new TranslatedString
-                {
-                  Language = "en-US",
-                  Value = "Image module description"
-                }
-              }
+              Uri = "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
             },
-            Id = "IMAGE_MODULE_ID"
-          }
-        },
+            ContentDescription = new LocalizedString
+            {
+              DefaultValue = new TranslatedString
+              {
+                Language = "en-US",
+                Value = "Image module description"
+              }
+            }
+          },
+          Id = "IMAGE_MODULE_ID"
+        }
+      },
       Barcode = new Barcode
       {
         Type = "QR_CODE",
         Value = "QR code"
       },
       Locations = new List<LatLongPoint>
+      {
+        new LatLongPoint
         {
-          new LatLongPoint
-          {
-            Latitude = 37.424015499999996,
-            Longitude = -122.09259560000001
-          }
-        },
+          Latitude = 37.424015499999996,
+          Longitude = -122.09259560000001
+        }
+      },
       ValidTimeInterval = new TimeInterval
       {
         Start = new Google.Apis.Walletobjects.v1.Data.DateTime
