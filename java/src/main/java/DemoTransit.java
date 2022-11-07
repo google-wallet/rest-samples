@@ -226,6 +226,7 @@ public class DemoTransit {
                         .setLongitude(-122.09259560000001)))
             .setPassengerType("SINGLE_PASSENGER")
             .setPassengerNames("Passenger names")
+            .setTripType("ONE_WAY")
             .setTicketLeg(
                 new TicketLeg()
                     .setOriginStationCode("LA")
@@ -361,6 +362,7 @@ public class DemoTransit {
                         .setLongitude(-122.09259560000001)))
             .setPassengerType("SINGLE_PASSENGER")
             .setPassengerNames("Passenger names")
+            .setTripType("ONE_WAY")
             .setTicketLeg(
                 new TicketLeg()
                     .setOriginStationCode("LA")
@@ -563,6 +565,7 @@ public class DemoTransit {
                           .setLongitude(-122.09259560000001)))
               .setPassengerType("SINGLE_PASSENGER")
               .setPassengerNames("Passenger names")
+              .setTripType("ONE_WAY")
               .setTicketLeg(
                   new TicketLeg()
                       .setOriginStationCode("LA")

@@ -208,6 +208,7 @@ class DemoTransit
       ],
       'passengerType' => 'SINGLE_PASSENGER',
       'passengerNames' => 'Passenger names',
+      'tripType' => 'ONE_WAY',
       'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
         'originStationCode' => 'LA',
         'originName' => new Google_Service_Walletobjects_LocalizedString([
@@ -360,6 +361,7 @@ class DemoTransit
       ],
       'passengerType' => 'SINGLE_PASSENGER',
       'passengerNames' => 'Passenger names',
+      'tripType' => 'ONE_WAY',
       'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
         'originStationCode' => 'LA',
         'originName' => new Google_Service_Walletobjects_LocalizedString([
@@ -564,6 +566,7 @@ class DemoTransit
         ],
         'passengerType' => 'SINGLE_PASSENGER',
         'passengerNames' => 'Passenger names',
+        'tripType' => 'ONE_WAY',
         'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
           'originStationCode' => 'LA',
           'originName' => new Google_Service_Walletobjects_LocalizedString([

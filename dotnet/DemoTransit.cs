@@ -263,6 +263,7 @@ class DemoTransit
           },
           PassengerType = "SINGLE_PASSENGER",
           PassengerNames = "Passenger names",
+          TripType = "ONE_WAY",
           TicketLeg = new TicketLeg
           {
             OriginStationCode = "LA",
@@ -473,6 +474,7 @@ class DemoTransit
       },
       PassengerType = "SINGLE_PASSENGER",
       PassengerNames = "Passenger names",
+      TripType = "ONE_WAY",
       TicketLeg = new TicketLeg
       {
         OriginStationCode = "LA",
@@ -727,6 +729,7 @@ class DemoTransit
         },
         PassengerType = "SINGLE_PASSENGER",
         PassengerNames = "Passenger names",
+        TripType = "ONE_WAY",
         TicketLeg = new TicketLeg
         {
           OriginStationCode = "LA",

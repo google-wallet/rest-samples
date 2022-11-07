@@ -99,6 +99,7 @@ Connection: Keep-Alive
   ],
   "passengerType": "SINGLE_PASSENGER",
   "passengerNames": "Passenger names",
+  "tripType": "ONE_WAY",
   "ticketLeg": {
     "originStationCode": "LA",
     "originName": {
@@ -239,6 +240,7 @@ POST /walletobjects/v1/transitObject/
   ],
   "passengerType": "SINGLE_PASSENGER",
   "passengerNames": "Passenger names",
+  "tripType": "ONE_WAY",
   "ticketLeg": {
     "originStationCode": "LA",
     "originName": {
@@ -334,6 +336,7 @@ POST /walletobjects/v1/transitObject/
   ],
   "passengerType": "SINGLE_PASSENGER",
   "passengerNames": "Passenger names",
+  "tripType": "ONE_WAY",
   "ticketLeg": {
     "originStationCode": "LA",
     "originName": {
@@ -429,6 +432,7 @@ POST /walletobjects/v1/transitObject/
   ],
   "passengerType": "SINGLE_PASSENGER",
   "passengerNames": "Passenger names",
+  "tripType": "ONE_WAY",
   "ticketLeg": {
     "originStationCode": "LA",
     "originName": {
