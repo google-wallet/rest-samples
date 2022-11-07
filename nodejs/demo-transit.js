@@ -182,6 +182,7 @@ class DemoTransit {
       ],
       'passengerType': 'SINGLE_PASSENGER',
       'passengerNames': 'Passenger names',
+      'tripType': 'ONE_WAY',
       'ticketLeg': {
         'originStationCode': 'LA',
         'originName': {
@@ -347,6 +348,7 @@ class DemoTransit {
       ],
       'passengerType': 'SINGLE_PASSENGER',
       'passengerNames': 'Passenger names',
+      'tripType': 'ONE_WAY',
       'ticketLeg': {
         'originStationCode': 'LA',
         'originName': {
@@ -553,6 +555,7 @@ class DemoTransit {
         ],
         'passengerType': 'SINGLE_PASSENGER',
         'passengerNames': 'Passenger names',
+        'tripType': 'ONE_WAY',
         'ticketLeg': {
           'originStationCode': 'LA',
           'originName': {
