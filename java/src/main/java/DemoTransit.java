@@ -386,7 +386,7 @@ public class DemoTransit {
                             .setDefaultValue(
                                 new TranslatedString()
                                     .setLanguage("en-US")
-                                    .setValue("Fare name")))));
+                                    .setValue("Fare name"))));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
