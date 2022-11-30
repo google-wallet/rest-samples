@@ -32,10 +32,12 @@ class DemoLoyalty {
      */
     this.keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/path/to/key.json';
 
-    /**
-     * Base URL for Google Wallet API requests.
-     */
-    this.baseUrl = 'https://walletobjects.googleapis.com/walletobjects/v1'
+    this.baseUrl = 'https://walletobjects.googleapis.com/walletobjects/v1';
+    this.batchUrl = 'https://walletobjects.googleapis.com/batch';
+    this.classUrl = `${this.baseUrl}/loyaltyClass`;
+    this.objectUrl = `${this.baseUrl}/loyaltyObject`;
+
+    this.auth();
   }
   // [END setup]
 
@@ -48,182 +50,575 @@ class DemoLoyalty {
 
     this.httpClient = new GoogleAuth({
       credentials: this.credentials,
-      scopes: 'https://www.googleapis.com/auth/wallet_object.issuer',
+      scopes: 'https://www.googleapis.com/auth/wallet_object.issuer'
     });
   }
   // [END auth]
 
-  // [START class]
+  // [START createClass]
   /**
-   * Create a class via the API. This can also be done in the Google Pay and
-   * Wallet console.
+   * Create a class.
    *
    * @param {string} issuerId The issuer ID being used for this request.
    * @param {string} classSuffix Developer-defined unique ID for this pass class.
    *
    * @returns {string} The pass class ID: `${issuerId}.${classSuffix}`
    */
-  async createLoyaltyClass(issuerId, classSuffix) {
-    const loyaltyClassUrl = `${this.baseUrl}/loyaltyClass`;
+  async createClass(issuerId, classSuffix) {
+    let response;
+
+    // Check if the class exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+        method: 'GET'
+      });
+
+      console.log(`Class ${issuerId}.${classSuffix} already exists!`);
+
+      return `${issuerId}.${classSuffix}`;
+    } catch (err) {
+      if (err.response && err.response.status !== 404) {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${classSuffix}`;
+      }
+    }
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
-    let loyaltyClass = {
+    let newClass = {
       'id': `${issuerId}.${classSuffix}`,
       'issuerName': 'Issuer name',
       'reviewStatus': 'UNDER_REVIEW',
       'programName': 'Program name',
       'programLogo': {
         'sourceUri': {
-          'uri': 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
+          'uri': 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg'
         },
         'contentDescription': {
           'defaultValue': {
             'language': 'en-US',
-            'value': 'Logo description',
-          },
-        },
-      },
+            'value': 'Logo description'
+          }
+        }
+      }
     };
 
-    let response = await this.httpClient.request({
-      url: loyaltyClassUrl,
+    response = await this.httpClient.request({
+      url: this.classUrl,
       method: 'POST',
-      data: loyaltyClass,
+      data: newClass
     });
 
     console.log('Class insert response');
     console.log(response);
 
-    return response.data.id;
+    return `${issuerId}.${classSuffix}`;
   }
-  // [END class]
+  // [END createClass]
 
-  // [START object]
+  // [START updateClass]
   /**
-   * Create an object via the API.
+   * Update a class.
+   *
+   * **Warning:** This replaces all existing class attributes!
    *
    * @param {string} issuerId The issuer ID being used for this request.
    * @param {string} classSuffix Developer-defined unique ID for this pass class.
-   * @param {string} userId Developer-defined user ID for this object.
    *
-   * @returns {string} The pass object ID: `${issuerId}.${userId}`
+   * @returns {string} The pass class ID: `${issuerId}.${classSuffix}`
    */
-  async createLoyaltyObject(issuerId, classSuffix, userId) {
-    const loyaltyObjectUrl = `${this.baseUrl}/loyaltyObject`;
+  async updateClass(issuerId, classSuffix) {
+    let response;
 
-    // Generate the object ID
-    // Should only include alphanumeric characters, '.', '_', or '-'
-    let objectId = `${issuerId}.${userId.replace(/[^\w.-]/g, '_')}`;
+    // Check if the class exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Class ${issuerId}.${classSuffix} not found!`);
+        return `${issuerId}.${classSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${classSuffix}`;
+      }
+    }
+
+    // Class exists
+    let updatedClass = response.data;
+
+    // Update the class by adding a homepage
+    updatedClass['homepageUri'] = {
+      'uri': 'https://developers.google.com/wallet',
+      'description': 'Homepage description'
+    };
+
+    // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+    updatedClass['reviewStatus'] = 'UNDER_REVIEW';
+
+    response = await this.httpClient.request({
+      url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+      method: 'PUT',
+      data: updatedClass
+    });
+
+    console.log('Class update response');
+    console.log(response);
+
+    return `${issuerId}.${classSuffix}`;
+  }
+  // [END updateClass]
+
+  // [START patchClass]
+  /**
+   * Patch a class.
+   *
+   * The PATCH method supports patch semantics.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} classSuffix Developer-defined unique ID for this pass class.
+   *
+   * @returns {string} The pass class ID: `${issuerId}.${classSuffix}`
+   */
+  async patchClass(issuerId, classSuffix) {
+    let response;
+
+    // Check if the class exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Class ${issuerId}.${classSuffix} not found!`);
+        return `${issuerId}.${classSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${classSuffix}`;
+      }
+    }
+
+    // Patch the class by adding a homepage
+    let patchBody = {
+      'homepageUri': {
+        'uri': 'https://developers.google.com/wallet',
+        'description': 'Homepage description'
+      },
+
+      // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+      'reviewStatus': 'UNDER_REVIEW'
+    };
+
+    response = await this.httpClient.request({
+      url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+      method: 'PATCH',
+      data: patchBody
+    });
+
+    console.log('Class patch response');
+    console.log(response);
+
+    return `${issuerId}.${classSuffix}`;
+  }
+  // [END patchClass]
+
+  // [START addMessageClass]
+  /**
+   * Add a message to a pass class.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} classSuffix Developer-defined unique ID for this pass class.
+   * @param {string} header The message header.
+   * @param {string} body The message body.
+   *
+   * @returns {string} The pass class ID: `${issuerId}.${classSuffix}`
+   */
+  async addClassMessage(issuerId, classSuffix, header, body) {
+    let response;
+
+    // Check if the class exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Class ${issuerId}.${classSuffix} not found!`);
+        return `${issuerId}.${classSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${classSuffix}`;
+      }
+    }
+
+    response = await this.httpClient.request({
+      url: `${this.classUrl}/${issuerId}.${classSuffix}/addMessage`,
+      method: 'POST',
+      data: {
+        'message': {
+          'header': header,
+          'body': body
+        }
+      }
+    });
+
+    console.log('Class addMessage response');
+    console.log(response);
+
+    return `${issuerId}.${classSuffix}`;
+  }
+  // [END addMessageClass]
+
+  // [START createObject]
+  /**
+   * Create an object.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} classSuffix Developer-defined unique ID for the pass class.
+   * @param {string} objectSuffix Developer-defined unique ID for the pass object.
+   *
+   * @returns {string} The pass object ID: `${issuerId}.${objectSuffix}`
+   */
+  async createObject(issuerId, classSuffix, objectSuffix) {
+    let response;
+
+    // Check if the object exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+        method: 'GET'
+      });
+
+      console.log(`Object ${issuerId}.${objectSuffix} already exists!`);
+
+      return `${issuerId}.${objectSuffix}`;
+    } catch (err) {
+      if (err.response && err.response.status !== 404) {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${objectSuffix}`;
+      }
+    }
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
-    let loyaltyObject = {
-      'id': `${objectId}`,
+    let newObject = {
+      'id': `${issuerId}.${objectSuffix}`,
       'classId': `${issuerId}.${classSuffix}`,
       'state': 'ACTIVE',
       'heroImage': {
         'sourceUri': {
-          'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+          'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         },
         'contentDescription': {
           'defaultValue': {
             'language': 'en-US',
-            'value': 'Hero image description',
-          },
-        },
+            'value': 'Hero image description'
+          }
+        }
       },
       'textModulesData': [
         {
           'header': 'Text module header',
           'body': 'Text module body',
-          'id': 'TEXT_MODULE_ID',
-        },
+          'id': 'TEXT_MODULE_ID'
+        }
       ],
       'linksModuleData': {
         'uris': [
           {
             'uri': 'http://maps.google.com/',
             'description': 'Link module URI description',
-            'id': 'LINK_MODULE_URI_ID',
+            'id': 'LINK_MODULE_URI_ID'
           },
           {
             'uri': 'tel:6505555555',
             'description': 'Link module tel description',
-            'id': 'LINK_MODULE_TEL_ID',
-          },
-        ],
+            'id': 'LINK_MODULE_TEL_ID'
+          }
+        ]
       },
       'imageModulesData': [
         {
           'mainImage': {
             'sourceUri': {
-              'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+              'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             },
             'contentDescription': {
               'defaultValue': {
                 'language': 'en-US',
-                'value': 'Image module description',
-              },
-            },
+                'value': 'Image module description'
+              }
+            }
           },
-          'id': 'IMAGE_MODULE_ID',
-        },
+          'id': 'IMAGE_MODULE_ID'
+        }
       ],
       'barcode': {
         'type': 'QR_CODE',
-        'value': 'QR code',
+        'value': 'QR code'
       },
       'locations': [
         {
           'latitude': 37.424015499999996,
-          'longitude': -122.09259560000001,
-        },
+          'longitude': -122.09259560000001
+        }
       ],
       'accountId': 'Account id',
       'accountName': 'Account name',
       'loyaltyPoints': {
         'label': 'Points',
         'balance': {
-          'int': 800,
-        },
-      },
+          'int': 800
+        }
+      }
     };
 
+    response = await this.httpClient.request({
+      url: this.objectUrl,
+      method: 'POST',
+      data: newObject
+    });
+
+    console.log('Object insert response');
+    console.log(response);
+
+    return `${issuerId}.${objectSuffix}`;
+  }
+  // [END createObject]
+
+  // [START updateObject]
+  /**
+   * Update an object.
+   *
+   * **Warning:** This replaces all existing object attributes!
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} objectSuffix Developer-defined unique ID for the pass object.
+   *
+   * @returns {string} The pass object ID: `${issuerId}.${objectSuffix}`
+   */
+  async updateObject(issuerId, objectSuffix) {
     let response;
+
+    // Check if the object exists
     try {
       response = await this.httpClient.request({
-        url: `${loyaltyObjectUrl}/${objectId}`,
-        method: 'GET',
+        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+        method: 'GET'
       });
-
-      console.log('Object get response');
-      console.log(response);
-
-      return response.data.id;
     } catch (err) {
       if (err.response && err.response.status === 404) {
-        // Object does not yet exist
-        // Send POST request to create it
-        response = await this.httpClient.request({
-          url: loyaltyObjectUrl,
-          method: 'POST',
-          data: loyaltyObject,
-        });
-
-        console.log('Object insert response');
-        console.log(response);
-
-        return response.data.id;
+        console.log(`Object ${issuerId}.${objectSuffix} not found!`);
+        return `${issuerId}.${objectSuffix}`;
       } else {
-        // Something else went wrong
+        // Something else went wrong...
         console.log(err);
+        return `${issuerId}.${objectSuffix}`;
       }
     }
-  }
-  // [END object]
 
-  // [START jwt]
+    // Object exists
+    let updatedObject = response.data;
+
+    // Update the object by adding a link
+    let newLink = {
+      'uri': 'https://developers.google.com/wallet',
+      'description': 'New link description'
+    }
+    if (updatedObject['linksModuleData'] === undefined) {
+      updatedObject['linksModuleData'] = {
+        'uris': [newLink]
+      };
+    } else {
+      updatedObject['linksModuleData']['uris'].push(newLink);
+    }
+
+    response = await this.httpClient.request({
+      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+      method: 'PUT',
+      data: updatedObject
+    });
+
+    console.log('Object update response');
+    console.log(response);
+
+    return `${issuerId}.${objectSuffix}`;
+  }
+  // [END updateObject]
+
+  // [START patchObject]
+  /**
+   * Patch an object.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} objectSuffix Developer-defined unique ID for the pass object.
+   *
+   * @returns {string} The pass object ID: `${issuerId}.${objectSuffix}`
+   */
+  async patchObject(issuerId, objectSuffix) {
+    let response;
+
+    // Check if the object exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Object ${issuerId}.${objectSuffix} not found!`);
+        return `${issuerId}.${objectSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${objectSuffix}`;
+      }
+    }
+
+    // Object exists
+    let existingObject = response.data;
+
+    // Patch the object by adding a link
+    let newLink = {
+      'uri': 'https://developers.google.com/wallet',
+      'description': 'New link description'
+    };
+
+    let patchBody = {};
+    if (existingObject['linksModuleData'] === undefined) {
+      patchBody['linksModuleData'] = {
+        'uris': []
+      };
+    } else {
+      patchBody['linksModuleData'] = {
+        'uris': existingObject['linksModuleData']['uris']
+      };
+    }
+    patchBody['linksModuleData']['uris'].push(newLink);
+
+    response = await this.httpClient.request({
+      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+      method: 'PATCH',
+      data: patchBody
+    });
+
+    console.log('Object patch response');
+    console.log(response);
+
+    return `${issuerId}.${objectSuffix}`;
+  }
+  // [END patchObject]
+
+  // [START expireObject]
+  /**
+   * Expire an object.
+   *
+   * Sets the object's state to Expired. If the valid time interval is
+   * already set, the pass will expire automatically up to 24 hours after.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} objectSuffix Developer-defined unique ID for the pass object.
+   *
+   * @returns {string} The pass object ID: `${issuerId}.${objectSuffix}`
+   */
+  async expireObject(issuerId, objectSuffix) {
+    let response;
+
+    // Check if the object exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Object ${issuerId}.${objectSuffix} not found!`);
+        return `${issuerId}.${objectSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${objectSuffix}`;
+      }
+    }
+
+    // Patch the object, setting the pass as expired
+    let patchBody = {
+      'state': 'EXPIRED'
+    };
+
+    response = await this.httpClient.request({
+      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+      method: 'PATCH',
+      data: patchBody
+    });
+
+    console.log('Object expiration response');
+    console.log(response);
+
+    return `${issuerId}.${objectSuffix}`;
+  }
+  // [END expireObject]
+
+  // [START addMessageObject]
+  /**
+   * Add a message to a pass object.
+   *
+   * @param {string} issuerId The issuer ID being used for this request.
+   * @param {string} objectSuffix Developer-defined unique ID for this pass object.
+   * @param {string} header The message header.
+   * @param {string} body The message body.
+   *
+   * @returns {string} The pass class ID: `${issuerId}.${classSuffix}`
+   */
+  async addObjectMessage(issuerId, objectSuffix, header, body) {
+    let response;
+
+    // Check if the object exists
+    try {
+      response = await this.httpClient.request({
+        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
+        method: 'GET'
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`Object ${issuerId}.${objectSuffix} not found!`);
+        return `${issuerId}.${objectSuffix}`;
+      } else {
+        // Something else went wrong...
+        console.log(err);
+        return `${issuerId}.${objectSuffix}`;
+      }
+    }
+
+    response = await this.httpClient.request({
+      url: `${this.objectUrl}/${issuerId}.${objectSuffix}/addMessage`,
+      method: 'POST',
+      data: {
+        'message': {
+          'header': header,
+          'body': body
+        }
+      }
+    });
+
+    console.log('Object addMessage response');
+    console.log(response);
+
+    return `${issuerId}.${objectSuffix}`;
+  }
+  // [END addMessageObject]
+
+  // [START jwtNew]
   /**
    * Generate a signed JWT that creates a new pass class and object.
    *
@@ -233,108 +628,104 @@ class DemoLoyalty {
    * one API call when the user saves the pass to their wallet.
    *
    * @param {string} issuerId The issuer ID being used for this request.
-   * @param {string} classSuffix Developer-defined unique ID for this pass class.
-   * @param {string} userId Developer-defined user ID for this object.
+   * @param {string} classSuffix Developer-defined unique ID for the pass class.
+   * @param {string} objectSuffix Developer-defined unique ID for the pass object.
    *
    * @returns {string} An "Add to Google Wallet" link.
    */
-  createJwtSaveUrl(issuerId, classSuffix, userId) {
-    // Generate the object ID
-    // Should only include alphanumeric characters, '.', '_', or '-'
-    let objectId = `${issuerId}.${userId.replace(/[^\w.-]/g, '_')}`;
-
+  createJwtNewObjects(issuerId, classSuffix, objectSuffix) {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyclass
-    let loyaltyClass = {
+    let newClass = {
       'id': `${issuerId}.${classSuffix}`,
       'issuerName': 'Issuer name',
       'reviewStatus': 'UNDER_REVIEW',
       'programName': 'Program name',
       'programLogo': {
         'sourceUri': {
-          'uri': 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg',
+          'uri': 'http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg'
         },
         'contentDescription': {
           'defaultValue': {
             'language': 'en-US',
-            'value': 'Logo description',
-          },
-        },
-      },
+            'value': 'Logo description'
+          }
+        }
+      }
     };
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
-    let loyaltyObject = {
-      'id': `${objectId}`,
+    let newObject = {
+      'id': `${issuerId}.${objectSuffix}`,
       'classId': `${issuerId}.${classSuffix}`,
       'state': 'ACTIVE',
       'heroImage': {
         'sourceUri': {
-          'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+          'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         },
         'contentDescription': {
           'defaultValue': {
             'language': 'en-US',
-            'value': 'Hero image description',
-          },
-        },
+            'value': 'Hero image description'
+          }
+        }
       },
       'textModulesData': [
         {
           'header': 'Text module header',
           'body': 'Text module body',
-          'id': 'TEXT_MODULE_ID',
-        },
+          'id': 'TEXT_MODULE_ID'
+        }
       ],
       'linksModuleData': {
         'uris': [
           {
             'uri': 'http://maps.google.com/',
             'description': 'Link module URI description',
-            'id': 'LINK_MODULE_URI_ID',
+            'id': 'LINK_MODULE_URI_ID'
           },
           {
             'uri': 'tel:6505555555',
             'description': 'Link module tel description',
-            'id': 'LINK_MODULE_TEL_ID',
-          },
-        ],
+            'id': 'LINK_MODULE_TEL_ID'
+          }
+        ]
       },
       'imageModulesData': [
         {
           'mainImage': {
             'sourceUri': {
-              'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+              'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             },
             'contentDescription': {
               'defaultValue': {
                 'language': 'en-US',
-                'value': 'Image module description',
-              },
-            },
+                'value': 'Image module description'
+              }
+            }
           },
-          'id': 'IMAGE_MODULE_ID',
-        },
+          'id': 'IMAGE_MODULE_ID'
+        }
       ],
       'barcode': {
         'type': 'QR_CODE',
-        'value': 'QR code',
+        'value': 'QR code'
       },
       'locations': [
         {
           'latitude': 37.424015499999996,
-          'longitude': -122.09259560000001,
-        },
+          'longitude': -122.09259560000001
+        }
       ],
       'accountId': 'Account id',
       'accountName': 'Account name',
       'loyaltyPoints': {
         'label': 'Points',
         'balance': {
-          'int': 800,
-        },
-      },
+          'int': 800
+        }
+      }
     };
 
     // Create the JWT claims
@@ -345,9 +736,9 @@ class DemoLoyalty {
       typ: 'savetowallet',
       payload: {
         // The listed classes and objects will be created
-        loyaltyClasses: [loyaltyClass,],
-        loyaltyObjects: [loyaltyObject,],
-      },
+        loyaltyClasses: [newClass],
+        loyaltyObjects: [newObject]
+      }
     };
 
     // The service account credentials are used to sign the JWT
@@ -358,74 +749,94 @@ class DemoLoyalty {
 
     return `https://pay.google.com/gp/v/save/${token}`;
   }
-  // [END jwt]
+  // [END jwtNew]
 
-  // [START createIssuer]
+  // [START jwtExisting]
   /**
-   * Create a new Google Wallet issuer account.
+   * Generate a signed JWT that references an existing pass object.
    *
-   * @param {string} issuerName The issuer's name.
-   * @param {string} issuerEmail The issuer's email address.
-   */
-  async createIssuerAccount(issuerName, issuerEmail) {
-    // Issuer API endpoint
-    const issuerUrl = `${this.baseUrl}/issuer`;
-
-    // New issuer information
-    let issuer = {
-      name: issuerName,
-      contactInfo: {
-        email: issuerEmail,
-      },
-    };
-
-    let response = await this.httpClient.request({
-      url: issuerUrl,
-      method: 'POST',
-      data: issuer
-    });
-
-    console.log('Issuer insert response');
-    console.log(response);
-  }
-  // [END createIssuer]
-
-  // [START updatePermissions]
-  /**
-   * Update permissions for an existing Google Wallet issuer account.
-   * **Warning:** This operation overwrites all existing permissions!
+   * When the user opens the "Add to Google Wallet" URL and saves the pass to
+   * their wallet, the pass objects defined in the JWT are added to the
+   * user's Google Wallet app. This allows the user to save multiple pass
+   * objects in one API call.
    *
-   * Example permissions list argument below. Copy the dict entry as
-   * needed for each email address that will need access. Supported
-   * values for role are: 'READER', 'WRITER', and 'OWNER'
+   * The objects to add must follow the below format:
    *
-   * let permissions = [
    *  {
-   *    'emailAddress': 'email-address',
-   *    'role': 'OWNER',
-   *  },
-   * ];
+   *    'id': 'ISSUER_ID.OBJECT_SUFFIX',
+   *    'classId': 'ISSUER_ID.CLASS_SUFFIX'
+   *  }
    *
    * @param {string} issuerId The issuer ID being used for this request.
-   * @param {Array} permissions The list of email addresses and roles to assign.
+   *
+   * @returns {string} An "Add to Google Wallet" link.
    */
-  async updateIssuerPermissions(issuerId, permissions) {
-    // Permissions API endpoint
-    const permissionsUrl = `${this.baseUrl}/permissions/${issuerId}`;
+  createJwtExistingObjects(issuerId) {
+    // Multiple pass types can be added at the same time
+    // At least one type must be specified in the JWT claims
+    // Note: Make sure to replace the placeholder class and object suffixes
+    let objectsToAdd = {
+      // Event tickets
+      'eventTicketObjects': [{
+        'id': `${issuerId}.EVENT_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.EVENT_CLASS_SUFFIX`
+      }],
 
-    let response = await this.httpClient.request({
-      url: permissionsUrl,
-      method: 'PUT',
-      data: {
-        issuerId: issuerId,
-        permissions: permissions,
-      }
-    });
+      // Boarding passes
+      'flightObjects': [{
+        'id': `${issuerId}.FLIGHT_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.FLIGHT_CLASS_SUFFIX`
+      }],
 
-    console.log('Permissions update response');
-    console.log(response);
+      // Generic passes
+      'genericObjects': [{
+        'id': `${issuerId}.GENERIC_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.GENERIC_CLASS_SUFFIX`
+      }],
+
+      // Gift cards
+      'giftCardObjects': [{
+        'id': `${issuerId}.GIFT_CARD_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.GIFT_CARD_CLASS_SUFFIX`
+      }],
+
+      // Loyalty cards
+      'loyaltyObjects': [{
+        'id': `${issuerId}.LOYALTY_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.LOYALTY_CLASS_SUFFIX`
+      }],
+
+      // Offers
+      'offerObjects': [{
+        'id': `${issuerId}.OFFER_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.OFFER_CLASS_SUFFIX`
+      }],
+
+      // Transit passes
+      'transitObjects': [{
+        'id': `${issuerId}.TRANSIT_OBJECT_SUFFIX`,
+        'classId': `${issuerId}.TRANSIT_CLASS_SUFFIX`
+      }]
+    }
+
+    // Create the JWT claims
+    let claims = {
+      iss: this.credentials.client_email,
+      aud: 'google',
+      origins: ['www.example.com'],
+      typ: 'savetowallet',
+      payload: objectsToAdd
+    };
+
+    // The service account credentials are used to sign the JWT
+    let token = jwt.sign(claims, this.credentials.private_key, { algorithm: 'RS256' });
+
+    console.log('Add to Google Wallet link');
+    console.log(`https://pay.google.com/gp/v/save/${token}`);
+
+    return `https://pay.google.com/gp/v/save/${token}`;
   }
-  // [END updatePermissions]
+  // [END jwtExisting]
 
   // [START batch]
   /**
@@ -434,108 +845,103 @@ class DemoLoyalty {
    * @param {string} issuerId The issuer ID being used for this request.
    * @param {string} classSuffix Developer-defined unique ID for this pass class.
    */
-  async batchCreateLoyaltyObjects(issuerId, classSuffix) {
+  async batchCreateObjects(issuerId, classSuffix) {
     // See below for more information
     // https://cloud.google.com/compute/docs/api/how-tos/batch#example
     let data = '';
-    let loyaltyObject;
-    let userId;
-    let objectId;
+    let batchObject;
+    let objectSuffix;
 
     // Example: Generate three new pass objects
     for (let i = 0; i < 3; i++) {
-      // Generate a random user ID
-      userId = uuidv4().replace('[^\w.-]', '_');
-
-      // Generate an object ID with the user ID
-      // Should only include alphanumeric characters, '.', '_', or '-'
-      objectId = `${issuerId}.${userId}`;
+      // Generate a random object suffix
+      objectSuffix = uuidv4().replace('[^\w.-]', '_');
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/retail/loyalty-cards/rest/v1/loyaltyobject
-      loyaltyObject = {
-        'id': `${objectId}`,
+      batchObject = {
+        'id': `${issuerId}.${objectSuffix}`,
         'classId': `${issuerId}.${classSuffix}`,
         'state': 'ACTIVE',
         'heroImage': {
           'sourceUri': {
-            'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg',
+            'uri': 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
           },
           'contentDescription': {
             'defaultValue': {
               'language': 'en-US',
-              'value': 'Hero image description',
-            },
-          },
+              'value': 'Hero image description'
+            }
+          }
         },
         'textModulesData': [
           {
             'header': 'Text module header',
             'body': 'Text module body',
-            'id': 'TEXT_MODULE_ID',
-          },
+            'id': 'TEXT_MODULE_ID'
+          }
         ],
         'linksModuleData': {
           'uris': [
             {
               'uri': 'http://maps.google.com/',
               'description': 'Link module URI description',
-              'id': 'LINK_MODULE_URI_ID',
+              'id': 'LINK_MODULE_URI_ID'
             },
             {
               'uri': 'tel:6505555555',
               'description': 'Link module tel description',
-              'id': 'LINK_MODULE_TEL_ID',
-            },
-          ],
+              'id': 'LINK_MODULE_TEL_ID'
+            }
+          ]
         },
         'imageModulesData': [
           {
             'mainImage': {
               'sourceUri': {
-                'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg',
+                'uri': 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
               },
               'contentDescription': {
                 'defaultValue': {
                   'language': 'en-US',
-                  'value': 'Image module description',
-                },
-              },
+                  'value': 'Image module description'
+                }
+              }
             },
-            'id': 'IMAGE_MODULE_ID',
-          },
+            'id': 'IMAGE_MODULE_ID'
+          }
         ],
         'barcode': {
           'type': 'QR_CODE',
-          'value': 'QR code',
+          'value': 'QR code'
         },
         'locations': [
           {
             'latitude': 37.424015499999996,
-            'longitude': -122.09259560000001,
-          },
+            'longitude': -122.09259560000001
+          }
         ],
         'accountId': 'Account id',
         'accountName': 'Account name',
         'loyaltyPoints': {
           'label': 'Points',
           'balance': {
-            'int': 800,
-          },
-        },
+            'int': 800
+          }
+        }
       };
 
       data += '--batch_createobjectbatch\n';
       data += 'Content-Type: application/json\n\n';
       data += 'POST /walletobjects/v1/loyaltyObject\n\n';
 
-      data += JSON.stringify(loyaltyObject) + '\n\n';
+      data += JSON.stringify(batchObject) + '\n\n';
     }
     data += '--batch_createobjectbatch--';
 
     // Invoke the batch API calls
     let response = await this.httpClient.request({
-      url: `${this.baseUrl}/batch`,
+      url: this.batchUrl,
       method: 'POST',
       data: data,
       headers: {
