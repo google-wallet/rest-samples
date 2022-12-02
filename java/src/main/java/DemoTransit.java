@@ -40,17 +40,19 @@ public class DemoTransit {
    * Path to service account key file from Google Cloud Console. Environment variable:
    * GOOGLE_APPLICATION_CREDENTIALS.
    */
-  public String keyFilePath;
+  public static String keyFilePath;
 
   /** Service account credentials for Google Wallet APIs. */
-  public GoogleCredentials credentials;
+  public static GoogleCredentials credentials;
 
   /** Google Wallet service client. */
-  public Walletobjects service;
+  public static Walletobjects service;
 
-  public DemoTransit() {
+  public DemoTransit() throws Exception {
     keyFilePath =
         System.getenv().getOrDefault("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/key.json");
+
+    Auth();
   }
   // [END setup]
 
@@ -70,6 +72,7 @@ public class DemoTransit {
 
     HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
+    // Initialize Google Wallet API service
     service =
         new Walletobjects.Builder(
                 httpTransport,
@@ -80,19 +83,33 @@ public class DemoTransit {
   }
   // [END auth]
 
-  // [START class]
+  // [START createClass]
   /**
-   * Create a class via the API. This can also be done in the Google Pay and Wallet console.
+   * Create a class.
    *
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
    * @throws IOException
    */
-  public String CreateTransitClass(String issuerId, String classSuffix) throws IOException {
+  public String CreateClass(String issuerId, String classSuffix) throws IOException {
+    // Check if the class exists
+    try {
+      service.transitclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+
+      System.out.println(String.format("Class %s.%s already exists!", issuerId, classSuffix));
+      return String.format("%s.%s", issuerId, classSuffix);
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() != 404) {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, classSuffix);
+      }
+    }
+
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitclass
-    TransitClass transitClass =
+    TransitClass newClass =
         new TransitClass()
             .setId(String.format("%s.%s", issuerId, classSuffix))
             .setIssuerName("Issuer name")
@@ -111,65 +128,198 @@ public class DemoTransit {
                                     .setValue("Logo description"))))
             .setTransitType("BUS");
 
-    try {
-      TransitClass response = service.transitclass().insert(transitClass).execute();
+    TransitClass response = service.transitclass().insert(newClass).execute();
 
-      System.out.println("Class insert response");
-      System.out.println(response.toPrettyString());
+    System.out.println("Class insert response");
+    System.out.println(response.toPrettyString());
 
-      return response.getId();
-    } catch (GoogleJsonResponseException ex) {
-      if (ex.getStatusCode() == 409) {
-        System.out.println(String.format("Class %s.%s already exists", issuerId, classSuffix));
-        return String.format("%s.%s", issuerId, classSuffix);
-      }
-
-      // Something else went wrong
-      ex.printStackTrace();
-      return ex.getMessage();
-    }
+    return response.getId();
   }
-  // [END class]
+  // [END createClass]
 
-  // [START object]
+  // [START updateClass]
   /**
-   * Create an object via the API.
+   * Update a class.
+   *
+   * <p><strong>Warning:</strong> This replaces all existing class attributes!
    *
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
-   * @param userId Developer-defined user ID for this object.
-   * @return The pass object ID: "{issuerId}.{userId}"
+   * @return The pass class ID: "{issuerId}.{classSuffix}"
    * @throws IOException
    */
-  public String CreateTransitObject(String issuerId, String classSuffix, String userId)
-      throws IOException {
-    // Generate the object ID
-    // Should only include alphanumeric characters, '.', '_', or '-'
-    String newUserId = userId.replaceAll("[^\\w.-]", "_");
-    String objectId = String.format("%s.%s", issuerId, newUserId);
+  public String UpdateClass(String issuerId, String classSuffix) throws IOException {
+    TransitClass updatedClass;
 
+    // Check if the class exists
     try {
-      // Check if the object exists
-      TransitObject response = service.transitobject().get(objectId).execute();
-
-      System.out.println("Object get response");
-      System.out.println(response.toPrettyString());
-
-      return response.getId();
+      updatedClass =
+          service.transitclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
-      if (ex.getStatusCode() != 404) {
-        // Something else went wrong
+      if (ex.getStatusCode() == 404) {
+        // Class does not exist
+        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        return String.format("%s.%s", issuerId, classSuffix);
+      } else {
+        // Something else went wrong...
         ex.printStackTrace();
-        return ex.getMessage();
+        return String.format("%s.%s", issuerId, classSuffix);
       }
     }
 
-    // Object doesn't exist, create it now
+    // Class exists
+    // Update the class by adding a homepage
+    updatedClass.setHomepageUri(
+        new Uri()
+            .setUri("https://developers.google.com/wallet")
+            .setDescription("Homepage description"));
+
+    // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+    updatedClass.setReviewStatus("UNDER_REVIEW");
+
+    TransitClass response =
+        service
+            .transitclass()
+            .update(String.format("%s.%s", issuerId, classSuffix), updatedClass)
+            .execute();
+
+    System.out.println("Class update response");
+    System.out.println(response.toPrettyString());
+
+    return response.getId();
+  }
+  // [END updateClass]
+
+  // [START patchClass]
+  /**
+   * Patch a class.
+   *
+   * <p>The PATCH method supports patch semantics.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param classSuffix Developer-defined unique ID for this pass class.
+   * @return The pass class ID: "{issuerId}.{classSuffix}"
+   * @throws IOException
+   */
+  public String PatchClass(String issuerId, String classSuffix) throws IOException {
+    // Check if the class exists
+    try {
+      service.transitclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Class does not exist
+        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        return String.format("%s.%s", issuerId, classSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, classSuffix);
+      }
+    }
+
+    // Class exists
+    // Patch the class by adding a homepage
+    TransitClass patchBody =
+        new TransitClass()
+            .setHomepageUri(
+                new Uri()
+                    .setUri("https://developers.google.com/wallet")
+                    .setDescription("Homepage description"))
+
+            // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+            .setReviewStatus("UNDER_REVIEW");
+
+    TransitClass response =
+        service
+            .transitclass()
+            .patch(String.format("%s.%s", issuerId, classSuffix), patchBody)
+            .execute();
+
+    System.out.println("Class patch response");
+    System.out.println(response.toPrettyString());
+
+    return response.getId();
+  }
+  // [END patchClass]
+
+  // [START addMessageClass]
+  /**
+   * Add a message to a pass class.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param classSuffix Developer-defined unique ID for this pass class.
+   * @param header The message header.
+   * @param body The message body.
+   * @return The pass class ID: "{issuerId}.{classSuffix}"
+   * @throws IOException
+   */
+  public String AddClassMessage(String issuerId, String classSuffix, String header, String body)
+      throws IOException {
+    // Check if the class exists
+    try {
+      service.transitclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Class does not exist
+        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        return String.format("%s.%s", issuerId, classSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, classSuffix);
+      }
+    }
+
+    AddMessageRequest message =
+        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
+
+    TransitClassAddMessageResponse response =
+        service
+            .transitclass()
+            .addmessage(String.format("%s.%s", issuerId, classSuffix), message)
+            .execute();
+
+    System.out.println("Class addMessage response");
+    System.out.println(response.toPrettyString());
+
+    return String.format("%s.%s", issuerId, classSuffix);
+  }
+  // [END addMessageClass]
+
+  // [START createObject]
+  /**
+   * Create an object.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param classSuffix Developer-defined unique ID for this pass class.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   * @throws IOException
+   */
+  public String CreateObject(String issuerId, String classSuffix, String objectSuffix)
+      throws IOException {
+    // Check if the object exists
+    try {
+      service.transitobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+
+      System.out.println(String.format("Object %s.%s already exists!", issuerId, objectSuffix));
+      return String.format("%s.%s", issuerId, objectSuffix);
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        // Do nothing
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-    TransitObject transitObject =
+    TransitObject newObject =
         new TransitObject()
-            .setId(objectId)
+            .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
             .setHeroImage(
@@ -252,16 +402,219 @@ public class DemoTransit {
                                     .setLanguage("en-US")
                                     .setValue("Fare name"))));
 
-    TransitObject response = service.transitobject().insert(transitObject).execute();
+    TransitObject response = service.transitobject().insert(newObject).execute();
 
     System.out.println("Object insert response");
     System.out.println(response.toPrettyString());
 
     return response.getId();
   }
-  // [END object]
+  // [END createObject]
 
-  // [START jwt]
+  // [START updateObject]
+  /**
+   * Update an object.
+   *
+   * <p><strong>Warning:</strong> This replaces all existing object attributes!
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   * @throws IOException
+   */
+  public String UpdateObject(String issuerId, String objectSuffix) throws IOException {
+    TransitObject updatedObject;
+
+    // Check if the object exists
+    try {
+      updatedObject =
+          service.transitobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        return String.format("%s.%s", issuerId, objectSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
+    // Object exists
+    // Update the object by adding a link
+    Uri newLink =
+        new Uri()
+            .setUri("https://developers.google.com/wallet")
+            .setDescription("New link description");
+
+    if (updatedObject.getLinksModuleData() == null) {
+      // LinksModuleData was not set on the original object
+      updatedObject.setLinksModuleData(new LinksModuleData().setUris(Arrays.asList(newLink)));
+    } else {
+      updatedObject.getLinksModuleData().getUris().add(newLink);
+    }
+
+    TransitObject response =
+        service
+            .transitobject()
+            .update(String.format("%s.%s", issuerId, objectSuffix), updatedObject)
+            .execute();
+
+    System.out.println("Object update response");
+    System.out.println(response.toPrettyString());
+
+    return response.getId();
+  }
+  // [END updateObject]
+
+  // [START patchObject]
+  /**
+   * Patch an object.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   * @throws IOException
+   */
+  public String PatchObject(String issuerId, String objectSuffix) throws IOException {
+    TransitObject existingObject;
+
+    // Check if the object exists
+    try {
+      existingObject =
+          service.transitobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        return String.format("%s.%s", issuerId, objectSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
+    // Object exists
+    // Patch the object by adding a link
+    Uri newLink =
+        new Uri()
+            .setUri("https://developers.google.com/wallet")
+            .setDescription("New link description");
+
+    TransitObject patchBody = new TransitObject();
+
+    if (existingObject.getLinksModuleData() == null) {
+      // LinksModuleData was not set on the original object
+      patchBody.setLinksModuleData(new LinksModuleData().setUris(new ArrayList<Uri>()));
+    } else {
+      patchBody.setLinksModuleData(existingObject.getLinksModuleData());
+    }
+    patchBody.getLinksModuleData().getUris().add(newLink);
+
+    TransitObject response =
+        service
+            .transitobject()
+            .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
+            .execute();
+
+    System.out.println("Object patch response");
+    System.out.println(response.toPrettyString());
+
+    return response.getId();
+  }
+  // [END patchObject]
+
+  // [START expireObject]
+  /**
+   * Expire an object.
+   *
+   * <p>Sets the object's state to Expired. If the valid time interval is already set, the pass will
+   * expire automatically up to 24 hours after.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   * @throws IOException
+   */
+  public String ExpireObject(String issuerId, String objectSuffix) throws IOException {
+    // Check if the object exists
+    try {
+      service.transitobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        return String.format("%s.%s", issuerId, objectSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
+    // Patch the object, setting the pass as expired
+    TransitObject patchBody = new TransitObject().setState("EXPIRED");
+
+    TransitObject response =
+        service
+            .transitobject()
+            .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
+            .execute();
+
+    System.out.println("Object expiration response");
+    System.out.println(response.toPrettyString());
+
+    return response.getId();
+  }
+  // [END expireObject]
+
+  // [START addMessageObject]
+  /**
+   * Add a message to a pass object.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @param header The message header.
+   * @param body The message body.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   * @throws IOException
+   */
+  public String AddObjectMessage(String issuerId, String objectSuffix, String header, String body)
+      throws IOException {
+    // Check if the object exists
+    try {
+      service.transitobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        return String.format("%s.%s", issuerId, objectSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
+    AddMessageRequest message =
+        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
+
+    TransitObjectAddMessageResponse response =
+        service
+            .transitobject()
+            .addmessage(String.format("%s.%s", issuerId, objectSuffix), message)
+            .execute();
+
+    System.out.println("Object addMessage response");
+    System.out.println(response.toPrettyString());
+
+    return String.format("%s.%s", issuerId, objectSuffix);
+  }
+  // [END addMessageObject]
+
+  // [START jwtNew]
   /**
    * Generate a signed JWT that creates a new pass class and object.
    *
@@ -271,18 +624,13 @@ public class DemoTransit {
    *
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
-   * @param userId Developer-defined user ID for this object.
+   * @param objectSuffix Developer-defined unique ID for the pass object.
    * @return An "Add to Google Wallet" link.
    */
-  public String CreateJWTSaveURL(String issuerId, String classSuffix, String userId) {
-    // Generate the object ID
-    // Should only include alphanumeric characters, '.', '_', or '-'
-    String newUserId = userId.replaceAll("[^\\w.-]", "_");
-    String objectId = String.format("%s.%s", issuerId, newUserId);
-
+  public String CreateJWTNewObjects(String issuerId, String classSuffix, String objectSuffix) {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitclass
-    TransitClass transitClass =
+    TransitClass newClass =
         new TransitClass()
             .setId(String.format("%s.%s", issuerId, classSuffix))
             .setIssuerName("Issuer name")
@@ -303,9 +651,9 @@ public class DemoTransit {
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-    TransitObject transitObject =
+    TransitObject newObject =
         new TransitObject()
-            .setId(objectId)
+            .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
             .setHeroImage(
@@ -397,8 +745,8 @@ public class DemoTransit {
 
     // Create the Google Wallet payload and add to the JWT
     HashMap<String, Object> payload = new HashMap<String, Object>();
-    payload.put("transitClasses", Arrays.asList(transitClass));
-    payload.put("transitObjects", Arrays.asList(transitObject));
+    payload.put("transitClasses", Arrays.asList(newClass));
+    payload.put("transitObjects", Arrays.asList(newObject));
     claims.put("payload", payload);
 
     // The service account credentials are used to sign the JWT
@@ -412,62 +760,105 @@ public class DemoTransit {
 
     return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
-  // [END jwt]
+  // [END jwtNew]
 
-  // [START createIssuer]
+  // [START jwtExisting]
   /**
-   * Create a new Google Wallet issuer account.
+   * Generate a signed JWT that references an existing pass object.
    *
-   * @param issuerName The issuer's name.
-   * @param issuerEmail The issuer's email address.
-   * @throws IOException
-   */
-  public void CreateIssuerAccount(String issuerName, String issuerEmail) throws IOException {
-    // New issuer information
-    Issuer issuer =
-        new Issuer()
-            .setName(issuerName)
-            .setContactInfo(new IssuerContactInfo().setEmail(issuerEmail));
-
-    Issuer response = service.issuer().insert(issuer).execute();
-
-    System.out.println("Issuer insert response");
-    System.out.println(response.toPrettyString());
-  }
-  // [END createIssuer]
-
-  // [START updatePermissions]
-  /**
-   * Update permissions for an existing Google Wallet issuer account. <strong>Warning:</strong> This
-   * operation overwrites all existing permissions!
+   * <p>When the user opens the "Add to Google Wallet" URL and saves the pass to their wallet, the
+   * pass objects defined in the JWT are added to the user's Google Wallet app. This allows the user
+   * to save multiple pass objects in one API call.
    *
-   * <p>Example permissions list argument below. Copy the add entry as needed for each email address
-   * that will need access. Supported values for role are: 'READER', 'WRITER', and 'OWNER'
+   * <p>The objects to add must follow the below format:
    *
-   * <pre><code>
-   * ArrayList<Permission> permissions = new ArrayList<Permission>();
-   * permissions.add(new Permission().setEmailAddress("emailAddress").setRole("OWNER"));
-   * </code></pre>
+   * <p>{ 'id': 'ISSUER_ID.OBJECT_SUFFIX', 'classId': 'ISSUER_ID.CLASS_SUFFIX' }
    *
    * @param issuerId The issuer ID being used for this request.
-   * @param permissions The list of email addresses and roles to assign.
-   * @throws IOException
+   * @return An "Add to Google Wallet" link.
    */
-  public void UpdateIssuerAccountPermissions(String issuerId, ArrayList<Permission> permissions)
-      throws IOException {
+  public String CreateJWTExistingObjects(String issuerId) {
+    // Multiple pass types can be added at the same time
+    // At least one type must be specified in the JWT claims
+    // Note: Make sure to replace the placeholder class and object suffixes
+    HashMap<String, Object> objectsToAdd = new HashMap<String, Object>();
 
-    Permissions response =
-        service
-            .permissions()
-            .update(
-                Long.parseLong(issuerId),
-                new Permissions().setIssuerId(Long.parseLong(issuerId)).setPermissions(permissions))
-            .execute();
+    // Event tickets
+    objectsToAdd.put(
+        "eventTicketObjects",
+        Arrays.asList(
+            new EventTicketObject()
+                .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
 
-    System.out.println("Issuer permissions update response");
-    System.out.println(response.toPrettyString());
+    // Boarding passes
+    objectsToAdd.put(
+        "flightObjects",
+        Arrays.asList(
+            new FlightObject()
+                .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
+
+    // Generic passes
+    objectsToAdd.put(
+        "genericObjects",
+        Arrays.asList(
+            new GenericObject()
+                .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
+
+    // Gift cards
+    objectsToAdd.put(
+        "giftCardObjects",
+        Arrays.asList(
+            new GiftCardObject()
+                .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
+
+    // Loyalty cards
+    objectsToAdd.put(
+        "loyaltyObjects",
+        Arrays.asList(
+            new LoyaltyObject()
+                .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
+
+    // Offers
+    objectsToAdd.put(
+        "offerObjects",
+        Arrays.asList(
+            new OfferObject()
+                .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
+
+    // Transit passes
+    objectsToAdd.put(
+        "transitObjects",
+        Arrays.asList(
+            new TransitObject()
+                .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
+                .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
+
+    // Create the JWT as a HashMap object
+    HashMap<String, Object> claims = new HashMap<String, Object>();
+    claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
+    claims.put("aud", "google");
+    claims.put("origins", Arrays.asList("www.example.com"));
+    claims.put("typ", "savetowallet");
+    claims.put("payload", objectsToAdd);
+
+    // The service account credentials are used to sign the JWT
+    Algorithm algorithm =
+        Algorithm.RSA256(
+            null, (RSAPrivateKey) ((ServiceAccountCredentials) credentials).getPrivateKey());
+    String token = JWT.create().withPayload(claims).sign(algorithm);
+
+    System.out.println("Add to Google Wallet link");
+    System.out.println(String.format("https://pay.google.com/gp/v/save/%s", token));
+
+    return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
-  // [END updatePermissions]
+  // [END jwtExisting]
 
   // [START batch]
   /**
@@ -477,7 +868,7 @@ public class DemoTransit {
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @throws IOException
    */
-  public void BatchCreateTransitObjects(String issuerId, String classSuffix) throws IOException {
+  public void BatchCreateObjects(String issuerId, String classSuffix) throws IOException {
     // Create the batch request client
     BatchRequest batch = service.batch(new HttpCredentialsAdapter(credentials));
 
@@ -486,6 +877,7 @@ public class DemoTransit {
         new JsonBatchCallback<TransitObject>() {
           // Invoked if the request was successful
           public void onSuccess(TransitObject response, HttpHeaders responseHeaders) {
+            System.out.println("Batch insert response");
             System.out.println(response.toString());
           }
 
@@ -497,18 +889,14 @@ public class DemoTransit {
 
     // Example: Generate three new pass objects
     for (int i = 0; i < 3; i++) {
-      // Generate a random user ID
-      String userId = UUID.randomUUID().toString().replaceAll("[^\\w.-]", "_");
-
-      // Generate a random object ID with the user ID
-      // Should only include alphanumeric characters, '.', '_', or '-'
-      String objectId = String.format("%s.%s", issuerId, userId);
+      // Generate a random object suffix
+      String objectSuffix = UUID.randomUUID().toString().replaceAll("[^\\w.-]", "_");
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-      TransitObject transitObject =
+      TransitObject batchObject =
           new TransitObject()
-              .setId(objectId)
+              .setId(String.format("%s.%s", issuerId, objectSuffix))
               .setClassId(String.format("%s.%s", issuerId, classSuffix))
               .setState("ACTIVE")
               .setHeroImage(
@@ -591,7 +979,7 @@ public class DemoTransit {
                                       .setLanguage("en-US")
                                       .setValue("Fare name"))));
 
-      service.transitobject().insert(transitObject).queue(batch, callback);
+      service.transitobject().insert(batchObject).queue(batch, callback);
     }
 
     // Invoke the batch API calls
