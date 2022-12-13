@@ -82,10 +82,10 @@ for each class file.
     demo.expireObject('issuer_id', 'object_suffix');
 
     // Generate an Add to Google Wallet link that creates a new pass class and object
-    demo.createJWTNewObjects('issuer_id', 'class_suffix', 'object_suffix');
+    demo.createJwtNewObjects('issuer_id', 'class_suffix', 'object_suffix');
 
     // Generate an Add to Google Wallet link that references existing pass object(s)
-    demo.createJWTExistingObjects('issuer_id');
+    demo.createJwtExistingObjects('issuer_id');
 
     // Create pass objects in batch
     demo.batchCreateObjects('issuer_id', 'class_suffix');
