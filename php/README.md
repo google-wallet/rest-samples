@@ -19,7 +19,7 @@ creating a pass class, updating issuer permissions, and more.
 ## Prerequisites
 
 *   PHP 8.x
-*   Composer 2.x
+*   Composer 2.x 
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
     to create the Google Wallet issuer account and Google Cloud service account
