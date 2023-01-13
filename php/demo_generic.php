@@ -252,7 +252,7 @@ class DemoGeneric
   {
     // Check if the object exists
     try {
-      $this->service->eventticketobject->get("{$issuerId}.{$objectSuffix}");
+      $this->service->genericobject->get("{$issuerId}.{$objectSuffix}");
 
       print("Object {$issuerId}.{$objectSuffix} already exists!");
       return "{$issuerId}.{$objectSuffix}";
