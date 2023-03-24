@@ -118,9 +118,7 @@ for each class file.
 
     # Create an "Add to Google Wallet" link
     # that references existing pass classes and objects
-    demo.create_jwt_existing_objects(issuer_id='issuer_id',
-                                     class_suffix='class_suffix',
-                                     object_suffix='object_suffix')
+    demo.create_jwt_existing_objects(issuer_id='issuer_id')
 
     # Create pass objects in batch
     demo.batch_create_objects(issuer_id='issuer_id',
