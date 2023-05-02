@@ -865,8 +865,7 @@ class DemoGeneric
     {
       new EventTicketObject
       {
-        Id = $"{issuerId}.EVENT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.EVENT_CLASS_SUFFIX"
+        Id = $"{issuerId}.EVENT_OBJECT_SUFFIX"
       }
     });
 
@@ -875,8 +874,7 @@ class DemoGeneric
     {
       new FlightObject
       {
-        Id = $"{issuerId}.FLIGHT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.FLIGHT_CLASS_SUFFIX"
+        Id = $"{issuerId}.FLIGHT_OBJECT_SUFFIX"
       }
     });
 
@@ -885,8 +883,7 @@ class DemoGeneric
     {
       new GenericObject
       {
-        Id = $"{issuerId}.GENERIC_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.GENERIC_CLASS_SUFFIX"
+        Id = $"{issuerId}.GENERIC_OBJECT_SUFFIX"
       }
     });
 
@@ -895,8 +892,7 @@ class DemoGeneric
     {
       new GiftCardObject
       {
-        Id = $"{issuerId}.GIFT_CARD_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.GIFT_CARD_CLASS_SUFFIX"
+        Id = $"{issuerId}.GIFT_CARD_OBJECT_SUFFIX"
       }
     });
 
@@ -905,8 +901,7 @@ class DemoGeneric
     {
       new LoyaltyObject
       {
-        Id = $"{issuerId}.LOYALTY_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.LOYALTY_CLASS_SUFFIX"
+        Id = $"{issuerId}.LOYALTY_OBJECT_SUFFIX"
       }
     });
 
@@ -915,8 +910,7 @@ class DemoGeneric
     {
       new OfferObject
       {
-        Id = $"{issuerId}.OFFER_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.OFFER_CLASS_SUFFIX"
+        Id = $"{issuerId}.OFFER_OBJECT_SUFFIX"
       }
     });
 
@@ -925,8 +919,7 @@ class DemoGeneric
     {
       new TransitObject
       {
-        Id = $"{issuerId}.TRANSIT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.TRANSIT_CLASS_SUFFIX"
+        Id = $"{issuerId}.TRANSIT_OBJECT_SUFFIX"
       }
     });
 
