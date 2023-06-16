@@ -9,6 +9,7 @@ following languages:
 *   [JavaScript (Node.js)](./nodejs/README.md)
 *   [PHP](./php/README.md)
 *   [Python](./python/README.md)
+*   [Go](./go/README.md)
 
 Within each language's directory, you'll find standalone samples for each of the
 pass types supported by the Google Wallet APIs.
