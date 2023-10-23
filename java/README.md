@@ -18,7 +18,7 @@ creating a pass class, updating issuer permissions, and more.
 
 ## Prerequisites
 
-*   Java 17+
+*   Java 11+
 *   JDK 11+
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
