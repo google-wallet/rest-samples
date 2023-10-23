@@ -57,38 +57,38 @@ for each class file.
     DemoEventTicket demo = new DemoEventTicket();
 
     // Create a pass class
-    demo.CreateClass("issuer_id", "class_suffix");
+    demo.createClass("issuer_id", "class_suffix");
 
     // Update a pass class
-    demo.UpdateClass("issuer_id", "class_suffix");
+    demo.updateClass("issuer_id", "class_suffix");
 
     // Patch a pass class
-    demo.PatchClass("issuer_id", "class_suffix");
+    demo.patchClass("issuer_id", "class_suffix");
 
     // Add a message to a pass class
-    demo.AddClassMessage("issuer_id", "class_suffix", "header", "body");
+    demo.addClassMessage("issuer_id", "class_suffix", "header", "body");
 
     // Create a pass object
-    demo.CreateObject("issuer_id", "class_suffix", "object_suffix");
+    demo.createObject("issuer_id", "class_suffix", "object_suffix");
 
     // Update a pass object
-    demo.UpdateObject("issuer_id", "object_suffix");
+    demo.updateObject("issuer_id", "object_suffix");
 
     // Patch a pass object
-    demo.PatchObject("issuer_id", "object_suffix");
+    demo.patchObject("issuer_id", "object_suffix");
 
     // Add a message to a pass object
-    demo.AddObjectMessage("issuer_id", "object_suffix", "header", "body");
+    demo.addObjectMessage("issuer_id", "object_suffix", "header", "body");
 
     // Expire a pass object
-    demo.ExpireObject("issuer_id", "object_suffix");
+    demo.expireObject("issuer_id", "object_suffix");
 
     // Generate an Add to Google Wallet link that creates a new pass class and object
-    demo.CreateJWTNewObjects("issuer_id", "class_suffix", "object_suffix");
+    demo.createJWTNewObjects("issuer_id", "class_suffix", "object_suffix");
 
     // Generate an Add to Google Wallet link that references existing pass object(s)
-    demo.CreateJWTExistingObjects("issuer_id");
+    demo.createJWTExistingObjects("issuer_id");
 
     // Create pass objects in batch
-    demo.BatchCreateObjects("issuer_id", "class_suffix");
+    demo.batchCreateObjects("issuer_id", "class_suffix");
     ```
