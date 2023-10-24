@@ -673,44 +673,37 @@ class DemoGiftCard:
         objects_to_add = {
             # Event tickets
             'eventTicketObjects': [{
-                'id': f'{issuer_id}.EVENT_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.EVENT_CLASS_SUFFIX'
+                'id': f'{issuer_id}.EVENT_OBJECT_SUFFIX'
             }],
 
             # Boarding passes
             'flightObjects': [{
-                'id': f'{issuer_id}.FLIGHT_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.FLIGHT_CLASS_SUFFIX'
+                'id': f'{issuer_id}.FLIGHT_OBJECT_SUFFIX'
             }],
 
             # Generic passes
             'genericObjects': [{
-                'id': f'{issuer_id}.GENERIC_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.GENERIC_CLASS_SUFFIX'
+                'id': f'{issuer_id}.GENERIC_OBJECT_SUFFIX'
             }],
 
             # Gift cards
             'giftCardObjects': [{
-                'id': f'{issuer_id}.GIFT_CARD_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.GIFT_CARD_CLASS_SUFFIX'
+                'id': f'{issuer_id}.GIFT_CARD_OBJECT_SUFFIX'
             }],
 
             # Loyalty cards
             'loyaltyObjects': [{
-                'id': f'{issuer_id}.LOYALTY_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.LOYALTY_CLASS_SUFFIX'
+                'id': f'{issuer_id}.LOYALTY_OBJECT_SUFFIX'
             }],
 
             # Offers
             'offerObjects': [{
-                'id': f'{issuer_id}.OFFER_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.OFFER_CLASS_SUFFIX'
+                'id': f'{issuer_id}.OFFER_OBJECT_SUFFIX'
             }],
 
             # Transit passes
             'transitObjects': [{
-                'id': f'{issuer_id}.TRANSIT_OBJECT_SUFFIX',
-                'classId': f'{issuer_id}.TRANSIT_CLASS_SUFFIX'
+                'id': f'{issuer_id}.TRANSIT_OBJECT_SUFFIX'
             }]
         }
 
