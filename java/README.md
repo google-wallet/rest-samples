@@ -8,13 +8,13 @@ creating a pass class, updating issuer permissions, and more.
 
 | Pass type                  | File                                                         |
 |----------------------------|--------------------------------------------------------------|
-| Event tickets              | [DemoEventTicket.java](./src/main/java/DemoEventTicket.java) |
-| Flight boarding passes     | [DemoFlight.java](./src/main/java/DemoFlight.java)           |
-| Generic passes             | [DemoGeneric.java](./src/main/java/DemoGeneric.java)         |
-| Gift cards                 | [DemoGiftCard.java](./src/main/java/DemoGiftCard.java)       |
-| Loyalty program membership | [DemoLoyalty.java](./src/main/java/DemoLoyalty.java)         |
-| Offers and promotions      | [DemoOffer.java](./src/main/java/DemoOffer.java)             |
-| Transit passes             | [DemoTransit.java](./src/main/java/DemoTransit.java)         |
+| Event tickets              | [com.google.developers.wallet.rest.DemoEventTicket.java](./src/main/java/com.google.developers.wallet.rest.DemoEventTicket.java) |
+| Flight boarding passes     | [com.google.developers.wallet.rest.DemoFlight.java](./src/main/java/com.google.developers.wallet.rest.DemoFlight.java)           |
+| Generic passes             | [com.google.developers.wallet.rest.DemoGeneric.java](./src/main/java/com.google.developers.wallet.rest.DemoGeneric.java)         |
+| Gift cards                 | [com.google.developers.wallet.rest.DemoGiftCard.java](./src/main/java/com.google.developers.wallet.rest.DemoGiftCard.java)       |
+| Loyalty program membership | [com.google.developers.wallet.rest.DemoLoyalty.java](./src/main/java/com.google.developers.wallet.rest.DemoLoyalty.java)         |
+| Offers and promotions      | [com.google.developers.wallet.rest.DemoOffer.java](./src/main/java/com.google.developers.wallet.rest.DemoOffer.java)             |
+| Transit passes             | [com.google.developers.wallet.rest.DemoTransit.java](./src/main/java/com.google.developers.wallet.rest.DemoTransit.java)         |
 
 ## Prerequisites
 
@@ -54,7 +54,7 @@ for each class file.
     ```java
     // Create a demo class instance
     // Creates the authenticated HTTP client
-    DemoEventTicket demo = new DemoEventTicket();
+    com.google.developers.wallet.rest.DemoEventTicket demo = new com.google.developers.wallet.rest.DemoEventTicket();
 
     // Create a pass class
     demo.createClass("issuer_id", "class_suffix");
