@@ -466,6 +466,7 @@ func (d *demoGiftcard) batchCreateObjects(issuerId, classSuffix string) {
 	}
 	data += "--batch_createobjectbatch--"
 
+	// batchUrl = 'https://walletobjects.googleapis.com/batch';
 	res, err := d.httpClient.Post(batchUrl, "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
 
 	if err != nil {
