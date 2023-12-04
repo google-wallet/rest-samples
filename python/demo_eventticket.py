@@ -901,7 +901,7 @@ class DemoEventTicket:
 
         # Invoke the batch API calls
         response = self.http_client.post(
-            url=self.batch_url,
+            url=self.batch_url,  # https://walletobjects.googleapis.com/batch
             data=data,
             headers={
                 # `boundary` is the delimiter between API calls in the batch request
