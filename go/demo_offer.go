@@ -22,15 +22,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthJwt "golang.org/x/oauth2/jwt"
-	"io"
-	"net/http"
-	"os"
-	"strings"
 )
 
 // [END imports]
@@ -292,8 +293,8 @@ func (d *demoOffer) createJwtNewObjects(issuerId, classSuffix, objectSuffix stri
 	var payload map[string]interface{}
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"genericClasses": [%s],
-		"genericObjects": [%s]
+		"offerClasses": [%s],
+		"offerObjects": [%s]
 	}
 	`, newClass, newObject)), &payload)
 
