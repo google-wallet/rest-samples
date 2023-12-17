@@ -71,12 +71,12 @@ func (d *demoLoyalty) auth() {
 // [START createClass]
 // Create a class.
 func (d *demoLoyalty) createClass(issuerId, classSuffix string) {
-	var loyaltyClass *walletobjects.LoyaltyClass = new(walletobjects.LoyaltyClass)
 	logo := walletobjects.Image {
 		SourceUri: &walletobjects.ImageUri {
 			Uri: "http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg",
 		},
 	}
+	loyaltyClass := new(walletobjects.LoyaltyClass)
 	loyaltyClass.Id = fmt.Sprintf("%s.%s", issuerId, classSuffix)
 	loyaltyClass.ProgramName = "Program name"
 	loyaltyClass.IssuerName = "Issuer name"
@@ -84,7 +84,7 @@ func (d *demoLoyalty) createClass(issuerId, classSuffix string) {
 	loyaltyClass.ProgramLogo = &logo
 	res, err := d.service.Loyaltyclass.Insert(loyaltyClass).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert class: %v", err)
 	} else {
 		fmt.Printf("Class insert id:\n%v\n", res.Id)
 	}
@@ -95,7 +95,7 @@ func (d *demoLoyalty) createClass(issuerId, classSuffix string) {
 // [START createObject]
 // Create an object.
 func (d *demoLoyalty) createObject(issuerId, classSuffix, objectSuffix string) {
-	var loyaltyObject *walletobjects.LoyaltyObject = new(walletobjects.LoyaltyObject)
+	loyaltyObject := new(walletobjects.LoyaltyObject)
 	loyaltyObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
 	loyaltyObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
 	loyaltyObject.AccountName = "Account name"
@@ -153,7 +153,7 @@ func (d *demoLoyalty) createObject(issuerId, classSuffix, objectSuffix string) {
 	}
 	res, err := d.service.Loyaltyobject.Insert(loyaltyObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert object: %v", err)
 	} else {
 		fmt.Printf("Object insert id:\n%s\n", res.Id)
 	}
@@ -167,11 +167,12 @@ func (d *demoLoyalty) createObject(issuerId, classSuffix, objectSuffix string) {
 // Sets the object's state to Expired. If the valid time interval is
 // already set, the pass will expire automatically up to 24 hours after.
 func (d *demoLoyalty) expireObject(issuerId, objectSuffix string) {
-	var loyaltyObject *walletobjects.LoyaltyObject = new(walletobjects.LoyaltyObject)
-	loyaltyObject.State = "EXPIRED"
+	loyaltyObject := &walletobjects.LoyaltyObject {
+		State: "EXPIRED",
+	}
 	res, err := d.service.Loyaltyobject.Patch(fmt.Sprintf("%s.%s", issuerId, objectSuffix), loyaltyObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to patch object: %v", err)
 	} else {
 		fmt.Printf("Object expiration id:\n%s\n", res.Id)
 	}
@@ -187,20 +188,19 @@ func (d *demoLoyalty) expireObject(issuerId, objectSuffix string) {
 // created. This allows you to create multiple pass classes and objects in
 // one API call when the user saves the pass to their wallet.
 func (d *demoLoyalty) createJwtNewObjects(issuerId, classSuffix, objectSuffix string) {
-	var loyaltyObject *walletobjects.LoyaltyObject = new(walletobjects.LoyaltyObject)
+	loyaltyObject := new(walletobjects.LoyaltyObject)
 	loyaltyObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix + "_")
 	loyaltyObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
 	loyaltyObject.AccountName = "Account name"
 	loyaltyObject.AccountId = "Account id"
 	loyaltyObject.State = "ACTIVE"
-
-	var payload map[string]interface{}
+	loyaltyJson, _ := json.Marshal(loyaltyObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
 		"loyaltyObjects": [%s]
 	}
-	`, json.Marshal(loyaltyObject))), &payload)
-
+	`, loyaltyJson)), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
@@ -227,16 +227,16 @@ func (d *demoLoyalty) createJwtNewObjects(issuerId, classSuffix, objectSuffix st
 // user's Google Wallet app. This allows the user to save multiple pass
 // objects in one API call.
 func (d *demoLoyalty) createJwtExistingObjects(issuerId string, classSuffix string, objectSuffix string) {
-	var payload map[string]interface{}
+	loyaltyObject := new(walletobjects.LoyaltyObject)
+	loyaltyObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	loyaltyObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	loyaltyJson, _ := json.Marshal(loyaltyObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"loyaltyObjects": [{
-			"id": "%s.%s",
-			"classId": "%s.%s"
-		}],
+		"loyaltyObjects":[%s]
 	}
-	`, issuerId, objectSuffix, issuerId, classSuffix)), &payload)
-
+	`, loyaltyJson )), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
