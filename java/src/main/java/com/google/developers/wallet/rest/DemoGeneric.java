@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.google.developers.wallet.rest;
 
 // [START setup]
 // [START imports]
@@ -35,8 +36,8 @@ import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
 // [END imports]
 
-/** Demo class for creating and managing Offers in Google Wallet. */
-public class DemoOffer {
+/** Demo class for creating and managing Generic passes in Google Wallet. */
+public class DemoGeneric {
   /**
    * Path to service account key file from Google Cloud Console. Environment variable:
    * GOOGLE_APPLICATION_CREDENTIALS.
@@ -49,11 +50,11 @@ public class DemoOffer {
   /** Google Wallet service client. */
   public static Walletobjects service;
 
-  public DemoOffer() throws Exception {
+  public DemoGeneric() throws Exception {
     keyFilePath =
         System.getenv().getOrDefault("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/key.json");
 
-    Auth();
+    auth();
   }
   // [END setup]
 
@@ -61,14 +62,13 @@ public class DemoOffer {
   /**
    * Create authenticated HTTP client using a service account file.
    *
-   * @throws Exception
    */
-  public void Auth() throws Exception {
+  public void auth() throws Exception {
     String scope = "https://www.googleapis.com/auth/wallet_object.issuer";
 
     credentials =
         GoogleCredentials.fromStream(new FileInputStream(keyFilePath))
-            .createScoped(Arrays.asList(scope));
+            .createScoped(List.of(scope));
     credentials.refresh();
 
     HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
@@ -91,14 +91,13 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String CreateClass(String issuerId, String classSuffix) throws IOException {
+  public String createClass(String issuerId, String classSuffix) throws IOException {
     // Check if the class exists
     try {
-      service.offerclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+      service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
 
-      System.out.println(String.format("Class %s.%s already exists!", issuerId, classSuffix));
+      System.out.printf("Class %s.%s already exists!%n", issuerId, classSuffix);
       return String.format("%s.%s", issuerId, classSuffix);
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() != 404) {
@@ -109,17 +108,10 @@ public class DemoOffer {
     }
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/retail/offers/rest/v1/offerclass
-    OfferClass newClass =
-        new OfferClass()
-            .setId(String.format("%s.%s", issuerId, classSuffix))
-            .setIssuerName("Issuer name")
-            .setReviewStatus("UNDER_REVIEW")
-            .setProvider("Provider name")
-            .setTitle("Offer title")
-            .setRedemptionChannel("ONLINE");
+    // https://developers.google.com/wallet/generic/rest/v1/genericclass
+    GenericClass newClass = new GenericClass().setId(String.format("%s.%s", issuerId, classSuffix));
 
-    OfferClass response = service.offerclass().insert(newClass).execute();
+    GenericClass response = service.genericclass().insert(newClass).execute();
 
     System.out.println("Class insert response");
     System.out.println(response.toPrettyString());
@@ -137,19 +129,18 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String UpdateClass(String issuerId, String classSuffix) throws IOException {
-    OfferClass updatedClass;
+  public String updateClass(String issuerId, String classSuffix) throws IOException {
+    GenericClass updatedClass;
 
     // Check if the class exists
     try {
       updatedClass =
-          service.offerclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+          service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Class does not exist
-        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        System.out.printf("Class %s.%s not found!%n", issuerId, classSuffix);
         return String.format("%s.%s", issuerId, classSuffix);
       } else {
         // Something else went wrong...
@@ -159,18 +150,21 @@ public class DemoOffer {
     }
 
     // Class exists
-    // Update the class by adding a homepage
-    updatedClass.setHomepageUri(
+    // Update the class by adding a link
+    Uri newLink =
         new Uri()
             .setUri("https://developers.google.com/wallet")
-            .setDescription("Homepage description"));
+            .setDescription("New link description");
 
-    // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
-    updatedClass.setReviewStatus("UNDER_REVIEW");
+    if (updatedClass.getLinksModuleData() == null) {
+      // LinksModuleData was not set on the original object
+      updatedClass.setLinksModuleData(new LinksModuleData().setUris(new ArrayList<Uri>()));
+    }
+    updatedClass.getLinksModuleData().getUris().add(newLink);
 
-    OfferClass response =
+    GenericClass response =
         service
-            .offerclass()
+            .genericclass()
             .update(String.format("%s.%s", issuerId, classSuffix), updatedClass)
             .execute();
 
@@ -190,16 +184,18 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String PatchClass(String issuerId, String classSuffix) throws IOException {
+  public String patchClass(String issuerId, String classSuffix) throws IOException {
+    GenericClass existingClass;
+
     // Check if the class exists
     try {
-      service.offerclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+      existingClass =
+          service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Class does not exist
-        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        System.out.printf("Class %s.%s not found!%n", issuerId, classSuffix);
         return String.format("%s.%s", issuerId, classSuffix);
       } else {
         // Something else went wrong...
@@ -210,19 +206,26 @@ public class DemoOffer {
 
     // Class exists
     // Patch the class by adding a homepage
-    OfferClass patchBody =
-        new OfferClass()
-            .setHomepageUri(
-                new Uri()
-                    .setUri("https://developers.google.com/wallet")
-                    .setDescription("Homepage description"))
+    GenericClass patchBody = new GenericClass();
 
-            // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
-            .setReviewStatus("UNDER_REVIEW");
+    // Class exists
+    // Update the class by adding a link
+    Uri newLink =
+        new Uri()
+            .setUri("https://developers.google.com/wallet")
+            .setDescription("New link description");
 
-    OfferClass response =
+    if (existingClass.getLinksModuleData() == null) {
+      // LinksModuleData was not set on the original object
+      patchBody.setLinksModuleData(new LinksModuleData().setUris(new ArrayList<Uri>()));
+    } else {
+      patchBody.setLinksModuleData(existingClass.getLinksModuleData());
+    }
+    patchBody.getLinksModuleData().getUris().add(newLink);
+
+    GenericClass response =
         service
-            .offerclass()
+            .genericclass()
             .patch(String.format("%s.%s", issuerId, classSuffix), patchBody)
             .execute();
 
@@ -233,50 +236,6 @@ public class DemoOffer {
   }
   // [END patchClass]
 
-  // [START addMessageClass]
-  /**
-   * Add a message to a pass class.
-   *
-   * @param issuerId The issuer ID being used for this request.
-   * @param classSuffix Developer-defined unique ID for this pass class.
-   * @param header The message header.
-   * @param body The message body.
-   * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
-   */
-  public String AddClassMessage(String issuerId, String classSuffix, String header, String body)
-      throws IOException {
-    // Check if the class exists
-    try {
-      service.offerclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
-    } catch (GoogleJsonResponseException ex) {
-      if (ex.getStatusCode() == 404) {
-        // Class does not exist
-        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
-        return String.format("%s.%s", issuerId, classSuffix);
-      } else {
-        // Something else went wrong...
-        ex.printStackTrace();
-        return String.format("%s.%s", issuerId, classSuffix);
-      }
-    }
-
-    AddMessageRequest message =
-        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
-
-    OfferClassAddMessageResponse response =
-        service
-            .offerclass()
-            .addmessage(String.format("%s.%s", issuerId, classSuffix), message)
-            .execute();
-
-    System.out.println("Class addMessage response");
-    System.out.println(response.toPrettyString());
-
-    return String.format("%s.%s", issuerId, classSuffix);
-  }
-  // [END addMessageClass]
-
   // [START createObject]
   /**
    * Create an object.
@@ -285,21 +244,17 @@ public class DemoOffer {
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String CreateObject(String issuerId, String classSuffix, String objectSuffix)
+  public String createObject(String issuerId, String classSuffix, String objectSuffix)
       throws IOException {
     // Check if the object exists
     try {
-      service.offerobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+      service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
 
-      System.out.println(String.format("Object %s.%s already exists!", issuerId, objectSuffix));
+      System.out.printf("Object %s.%s already exists!%n", issuerId, objectSuffix);
       return String.format("%s.%s", issuerId, objectSuffix);
     } catch (GoogleJsonResponseException ex) {
-      if (ex.getStatusCode() == 404) {
-        // Object does not exist
-        // Do nothing
-      } else {
+      if (ex.getStatusCode() != 404) {
         // Something else went wrong...
         ex.printStackTrace();
         return String.format("%s.%s", issuerId, objectSuffix);
@@ -307,9 +262,9 @@ public class DemoOffer {
     }
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-    OfferObject newObject =
-        new OfferObject()
+    // https://developers.google.com/wallet/generic/rest/v1/genericobject
+    GenericObject newObject =
+        new GenericObject()
             .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
@@ -326,11 +281,11 @@ public class DemoOffer {
                                     .setLanguage("en-US")
                                     .setValue("Hero image description"))))
             .setTextModulesData(
-                Arrays.asList(
-                    new TextModuleData()
-                        .setHeader("Text module header")
-                        .setBody("Text module body")
-                        .setId("TEXT_MODULE_ID")))
+                    List.of(
+                            new TextModuleData()
+                                    .setHeader("Text module header")
+                                    .setBody("Text module body")
+                                    .setId("TEXT_MODULE_ID")))
             .setLinksModuleData(
                 new LinksModuleData()
                     .setUris(
@@ -344,33 +299,45 @@ public class DemoOffer {
                                 .setDescription("Link module tel description")
                                 .setId("LINK_MODULE_TEL_ID"))))
             .setImageModulesData(
-                Arrays.asList(
-                    new ImageModuleData()
-                        .setMainImage(
-                            new Image()
-                                .setSourceUri(
-                                    new ImageUri()
-                                        .setUri(
-                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                .setContentDescription(
-                                    new LocalizedString()
-                                        .setDefaultValue(
-                                            new TranslatedString()
-                                                .setLanguage("en-US")
-                                                .setValue("Image module description"))))
-                        .setId("IMAGE_MODULE_ID")))
+                    List.of(
+                            new ImageModuleData()
+                                    .setMainImage(
+                                            new Image()
+                                                    .setSourceUri(
+                                                            new ImageUri()
+                                                                    .setUri(
+                                                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                    .setContentDescription(
+                                                            new LocalizedString()
+                                                                    .setDefaultValue(
+                                                                            new TranslatedString()
+                                                                                    .setLanguage("en-US")
+                                                                                    .setValue("Image module description"))))
+                                    .setId("IMAGE_MODULE_ID")))
             .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-            .setLocations(
-                Arrays.asList(
-                    new LatLongPoint()
-                        .setLatitude(37.424015499999996)
-                        .setLongitude(-122.09259560000001)))
-            .setValidTimeInterval(
-                new TimeInterval()
-                    .setStart(new DateTime().setDate("2023-06-12T23:20:50.52Z"))
-                    .setEnd(new DateTime().setDate("2023-12-12T23:20:50.52Z")));
+            .setCardTitle(
+                new LocalizedString()
+                    .setDefaultValue(
+                        new TranslatedString().setLanguage("en-US").setValue("Generic card title")))
+            .setHeader(
+                new LocalizedString()
+                    .setDefaultValue(
+                        new TranslatedString().setLanguage("en-US").setValue("Generic header")))
+            .setHexBackgroundColor("#4285f4")
+            .setLogo(
+                new Image()
+                    .setSourceUri(
+                        new ImageUri()
+                            .setUri(
+                                "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
+                    .setContentDescription(
+                        new LocalizedString()
+                            .setDefaultValue(
+                                new TranslatedString()
+                                    .setLanguage("en-US")
+                                    .setValue("Generic card logo"))));
 
-    OfferObject response = service.offerobject().insert(newObject).execute();
+    GenericObject response = service.genericobject().insert(newObject).execute();
 
     System.out.println("Object insert response");
     System.out.println(response.toPrettyString());
@@ -388,19 +355,18 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String UpdateObject(String issuerId, String objectSuffix) throws IOException {
-    OfferObject updatedObject;
+  public String updateObject(String issuerId, String objectSuffix) throws IOException {
+    GenericObject updatedObject;
 
     // Check if the object exists
     try {
       updatedObject =
-          service.offerobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+          service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -418,14 +384,14 @@ public class DemoOffer {
 
     if (updatedObject.getLinksModuleData() == null) {
       // LinksModuleData was not set on the original object
-      updatedObject.setLinksModuleData(new LinksModuleData().setUris(Arrays.asList(newLink)));
+      updatedObject.setLinksModuleData(new LinksModuleData().setUris(List.of(newLink)));
     } else {
       updatedObject.getLinksModuleData().getUris().add(newLink);
     }
 
-    OfferObject response =
+    GenericObject response =
         service
-            .offerobject()
+            .genericobject()
             .update(String.format("%s.%s", issuerId, objectSuffix), updatedObject)
             .execute();
 
@@ -443,19 +409,18 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String PatchObject(String issuerId, String objectSuffix) throws IOException {
-    OfferObject existingObject;
+  public String patchObject(String issuerId, String objectSuffix) throws IOException {
+    GenericObject existingObject;
 
     // Check if the object exists
     try {
       existingObject =
-          service.offerobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+          service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -471,7 +436,7 @@ public class DemoOffer {
             .setUri("https://developers.google.com/wallet")
             .setDescription("New link description");
 
-    OfferObject patchBody = new OfferObject();
+    GenericObject patchBody = new GenericObject();
 
     if (existingObject.getLinksModuleData() == null) {
       // LinksModuleData was not set on the original object
@@ -481,9 +446,9 @@ public class DemoOffer {
     }
     patchBody.getLinksModuleData().getUris().add(newLink);
 
-    OfferObject response =
+    GenericObject response =
         service
-            .offerobject()
+            .genericobject()
             .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
             .execute();
 
@@ -504,16 +469,15 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String ExpireObject(String issuerId, String objectSuffix) throws IOException {
+  public String expireObject(String issuerId, String objectSuffix) throws IOException {
     // Check if the object exists
     try {
-      service.offerobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+      service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -523,11 +487,11 @@ public class DemoOffer {
     }
 
     // Patch the object, setting the pass as expired
-    OfferObject patchBody = new OfferObject().setState("EXPIRED");
+    GenericObject patchBody = new GenericObject().setState("EXPIRED");
 
-    OfferObject response =
+    GenericObject response =
         service
-            .offerobject()
+            .genericobject()
             .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
             .execute();
 
@@ -537,50 +501,6 @@ public class DemoOffer {
     return response.getId();
   }
   // [END expireObject]
-
-  // [START addMessageObject]
-  /**
-   * Add a message to a pass object.
-   *
-   * @param issuerId The issuer ID being used for this request.
-   * @param objectSuffix Developer-defined unique ID for this pass object.
-   * @param header The message header.
-   * @param body The message body.
-   * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
-   */
-  public String AddObjectMessage(String issuerId, String objectSuffix, String header, String body)
-      throws IOException {
-    // Check if the object exists
-    try {
-      service.offerobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
-    } catch (GoogleJsonResponseException ex) {
-      if (ex.getStatusCode() == 404) {
-        // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
-        return String.format("%s.%s", issuerId, objectSuffix);
-      } else {
-        // Something else went wrong...
-        ex.printStackTrace();
-        return String.format("%s.%s", issuerId, objectSuffix);
-      }
-    }
-
-    AddMessageRequest message =
-        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
-
-    OfferObjectAddMessageResponse response =
-        service
-            .offerobject()
-            .addmessage(String.format("%s.%s", issuerId, objectSuffix), message)
-            .execute();
-
-    System.out.println("Object addMessage response");
-    System.out.println(response.toPrettyString());
-
-    return String.format("%s.%s", issuerId, objectSuffix);
-  }
-  // [END addMessageObject]
 
   // [START jwtNew]
   /**
@@ -595,22 +515,15 @@ public class DemoOffer {
    * @param objectSuffix Developer-defined unique ID for the pass object.
    * @return An "Add to Google Wallet" link.
    */
-  public String CreateJWTNewObjects(String issuerId, String classSuffix, String objectSuffix) {
+  public String createJWTNewObjects(String issuerId, String classSuffix, String objectSuffix) {
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/retail/offers/rest/v1/offerclass
-    OfferClass newClass =
-        new OfferClass()
-            .setId(String.format("%s.%s", issuerId, classSuffix))
-            .setIssuerName("Issuer name")
-            .setReviewStatus("UNDER_REVIEW")
-            .setProvider("Provider name")
-            .setTitle("Offer title")
-            .setRedemptionChannel("ONLINE");
+    // https://developers.google.com/wallet/generic/rest/v1/genericclass
+    GenericClass newClass = new GenericClass().setId(String.format("%s.%s", issuerId, classSuffix));
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-    OfferObject newObject =
-        new OfferObject()
+    // https://developers.google.com/wallet/generic/rest/v1/genericobject
+    GenericObject newObject =
+        new GenericObject()
             .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
@@ -627,11 +540,11 @@ public class DemoOffer {
                                     .setLanguage("en-US")
                                     .setValue("Hero image description"))))
             .setTextModulesData(
-                Arrays.asList(
-                    new TextModuleData()
-                        .setHeader("Text module header")
-                        .setBody("Text module body")
-                        .setId("TEXT_MODULE_ID")))
+                    List.of(
+                            new TextModuleData()
+                                    .setHeader("Text module header")
+                                    .setBody("Text module body")
+                                    .setId("TEXT_MODULE_ID")))
             .setLinksModuleData(
                 new LinksModuleData()
                     .setUris(
@@ -645,43 +558,55 @@ public class DemoOffer {
                                 .setDescription("Link module tel description")
                                 .setId("LINK_MODULE_TEL_ID"))))
             .setImageModulesData(
-                Arrays.asList(
-                    new ImageModuleData()
-                        .setMainImage(
-                            new Image()
-                                .setSourceUri(
-                                    new ImageUri()
-                                        .setUri(
-                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                .setContentDescription(
-                                    new LocalizedString()
-                                        .setDefaultValue(
-                                            new TranslatedString()
-                                                .setLanguage("en-US")
-                                                .setValue("Image module description"))))
-                        .setId("IMAGE_MODULE_ID")))
+                    List.of(
+                            new ImageModuleData()
+                                    .setMainImage(
+                                            new Image()
+                                                    .setSourceUri(
+                                                            new ImageUri()
+                                                                    .setUri(
+                                                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                    .setContentDescription(
+                                                            new LocalizedString()
+                                                                    .setDefaultValue(
+                                                                            new TranslatedString()
+                                                                                    .setLanguage("en-US")
+                                                                                    .setValue("Image module description"))))
+                                    .setId("IMAGE_MODULE_ID")))
             .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-            .setLocations(
-                Arrays.asList(
-                    new LatLongPoint()
-                        .setLatitude(37.424015499999996)
-                        .setLongitude(-122.09259560000001)))
-            .setValidTimeInterval(
-                new TimeInterval()
-                    .setStart(new DateTime().setDate("2023-06-12T23:20:50.52Z"))
-                    .setEnd(new DateTime().setDate("2023-12-12T23:20:50.52Z")));
+            .setCardTitle(
+                new LocalizedString()
+                    .setDefaultValue(
+                        new TranslatedString().setLanguage("en-US").setValue("Generic card title")))
+            .setHeader(
+                new LocalizedString()
+                    .setDefaultValue(
+                        new TranslatedString().setLanguage("en-US").setValue("Generic header")))
+            .setHexBackgroundColor("#4285f4")
+            .setLogo(
+                new Image()
+                    .setSourceUri(
+                        new ImageUri()
+                            .setUri(
+                                "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
+                    .setContentDescription(
+                        new LocalizedString()
+                            .setDefaultValue(
+                                new TranslatedString()
+                                    .setLanguage("en-US")
+                                    .setValue("Generic card logo"))));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
     claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
     claims.put("aud", "google");
-    claims.put("origins", Arrays.asList("www.example.com"));
+    claims.put("origins", List.of("www.example.com"));
     claims.put("typ", "savetowallet");
 
     // Create the Google Wallet payload and add to the JWT
     HashMap<String, Object> payload = new HashMap<String, Object>();
-    payload.put("offerClasses", Arrays.asList(newClass));
-    payload.put("offerObjects", Arrays.asList(newObject));
+    payload.put("genericClasses", List.of(newClass));
+    payload.put("genericObjects", List.of(newObject));
     claims.put("payload", payload);
 
     // The service account credentials are used to sign the JWT
@@ -691,7 +616,7 @@ public class DemoOffer {
     String token = JWT.create().withPayload(claims).sign(algorithm);
 
     System.out.println("Add to Google Wallet link");
-    System.out.println(String.format("https://pay.google.com/gp/v/save/%s", token));
+    System.out.printf("https://pay.google.com/gp/v/save/%s%n", token);
 
     return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
@@ -712,7 +637,7 @@ public class DemoOffer {
    * @param issuerId The issuer ID being used for this request.
    * @return An "Add to Google Wallet" link.
    */
-  public String CreateJWTExistingObjects(String issuerId) {
+  public String createJWTExistingObjects(String issuerId) {
     // Multiple pass types can be added at the same time
     // At least one type must be specified in the JWT claims
     // Note: Make sure to replace the placeholder class and object suffixes
@@ -721,64 +646,64 @@ public class DemoOffer {
     // Event tickets
     objectsToAdd.put(
         "eventTicketObjects",
-        Arrays.asList(
-            new EventTicketObject()
-                .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
+            List.of(
+                    new EventTicketObject()
+                            .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
 
     // Boarding passes
     objectsToAdd.put(
         "flightObjects",
-        Arrays.asList(
-            new FlightObject()
-                .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
+            List.of(
+                    new FlightObject()
+                            .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
 
     // Generic passes
     objectsToAdd.put(
         "genericObjects",
-        Arrays.asList(
-            new GenericObject()
-                .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
+            List.of(
+                    new GenericObject()
+                            .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
 
     // Gift cards
     objectsToAdd.put(
         "giftCardObjects",
-        Arrays.asList(
-            new GiftCardObject()
-                .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
+            List.of(
+                    new GiftCardObject()
+                            .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
 
     // Loyalty cards
     objectsToAdd.put(
         "loyaltyObjects",
-        Arrays.asList(
-            new LoyaltyObject()
-                .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
+            List.of(
+                    new LoyaltyObject()
+                            .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
 
     // Offers
     objectsToAdd.put(
         "offerObjects",
-        Arrays.asList(
-            new OfferObject()
-                .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
+            List.of(
+                    new OfferObject()
+                            .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
 
     // Transit passes
     objectsToAdd.put(
         "transitObjects",
-        Arrays.asList(
-            new TransitObject()
-                .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
+            List.of(
+                    new TransitObject()
+                            .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
     claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
     claims.put("aud", "google");
-    claims.put("origins", Arrays.asList("www.example.com"));
+    claims.put("origins", List.of("www.example.com"));
     claims.put("typ", "savetowallet");
     claims.put("payload", objectsToAdd);
 
@@ -789,7 +714,7 @@ public class DemoOffer {
     String token = JWT.create().withPayload(claims).sign(algorithm);
 
     System.out.println("Add to Google Wallet link");
-    System.out.println(String.format("https://pay.google.com/gp/v/save/%s", token));
+    System.out.printf("https://pay.google.com/gp/v/save/%s%n", token);
 
     return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
@@ -801,17 +726,16 @@ public class DemoOffer {
    *
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
-   * @throws IOException
    */
-  public void BatchCreateObjects(String issuerId, String classSuffix) throws IOException {
+  public void batchCreateObjects(String issuerId, String classSuffix) throws IOException {
     // Create the batch request client
     BatchRequest batch = service.batch(new HttpCredentialsAdapter(credentials));
 
     // The callback will be invoked for each request in the batch
-    JsonBatchCallback<OfferObject> callback =
-        new JsonBatchCallback<OfferObject>() {
+    JsonBatchCallback<GenericObject> callback =
+        new JsonBatchCallback<GenericObject>() {
           // Invoked if the request was successful
-          public void onSuccess(OfferObject response, HttpHeaders responseHeaders) {
+          public void onSuccess(GenericObject response, HttpHeaders responseHeaders) {
             System.out.println("Batch insert response");
             System.out.println(response.toString());
           }
@@ -828,9 +752,9 @@ public class DemoOffer {
       String objectSuffix = UUID.randomUUID().toString().replaceAll("[^\\w.-]", "_");
 
       // See link below for more information on required properties
-      // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-      OfferObject batchObject =
-          new OfferObject()
+      // https://developers.google.com/wallet/generic/rest/v1/genericobject
+      GenericObject batchObject =
+          new GenericObject()
               .setId(String.format("%s.%s", issuerId, objectSuffix))
               .setClassId(String.format("%s.%s", issuerId, classSuffix))
               .setState("ACTIVE")
@@ -847,11 +771,11 @@ public class DemoOffer {
                                       .setLanguage("en-US")
                                       .setValue("Hero image description"))))
               .setTextModulesData(
-                  Arrays.asList(
-                      new TextModuleData()
-                          .setHeader("Text module header")
-                          .setBody("Text module body")
-                          .setId("TEXT_MODULE_ID")))
+                      List.of(
+                              new TextModuleData()
+                                      .setHeader("Text module header")
+                                      .setBody("Text module body")
+                                      .setId("TEXT_MODULE_ID")))
               .setLinksModuleData(
                   new LinksModuleData()
                       .setUris(
@@ -865,33 +789,47 @@ public class DemoOffer {
                                   .setDescription("Link module tel description")
                                   .setId("LINK_MODULE_TEL_ID"))))
               .setImageModulesData(
-                  Arrays.asList(
-                      new ImageModuleData()
-                          .setMainImage(
-                              new Image()
-                                  .setSourceUri(
-                                      new ImageUri()
-                                          .setUri(
-                                              "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                  .setContentDescription(
-                                      new LocalizedString()
-                                          .setDefaultValue(
-                                              new TranslatedString()
-                                                  .setLanguage("en-US")
-                                                  .setValue("Image module description"))))
-                          .setId("IMAGE_MODULE_ID")))
+                      List.of(
+                              new ImageModuleData()
+                                      .setMainImage(
+                                              new Image()
+                                                      .setSourceUri(
+                                                              new ImageUri()
+                                                                      .setUri(
+                                                                              "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                      .setContentDescription(
+                                                              new LocalizedString()
+                                                                      .setDefaultValue(
+                                                                              new TranslatedString()
+                                                                                      .setLanguage("en-US")
+                                                                                      .setValue("Image module description"))))
+                                      .setId("IMAGE_MODULE_ID")))
               .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-              .setLocations(
-                  Arrays.asList(
-                      new LatLongPoint()
-                          .setLatitude(37.424015499999996)
-                          .setLongitude(-122.09259560000001)))
-              .setValidTimeInterval(
-                  new TimeInterval()
-                      .setStart(new DateTime().setDate("2023-06-12T23:20:50.52Z"))
-                      .setEnd(new DateTime().setDate("2023-12-12T23:20:50.52Z")));
+              .setCardTitle(
+                  new LocalizedString()
+                      .setDefaultValue(
+                          new TranslatedString()
+                              .setLanguage("en-US")
+                              .setValue("Generic card title")))
+              .setHeader(
+                  new LocalizedString()
+                      .setDefaultValue(
+                          new TranslatedString().setLanguage("en-US").setValue("Generic header")))
+              .setHexBackgroundColor("#4285f4")
+              .setLogo(
+                  new Image()
+                      .setSourceUri(
+                          new ImageUri()
+                              .setUri(
+                                  "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
+                      .setContentDescription(
+                          new LocalizedString()
+                              .setDefaultValue(
+                                  new TranslatedString()
+                                      .setLanguage("en-US")
+                                      .setValue("Generic card logo"))));
 
-      service.offerobject().insert(batchObject).queue(batch, callback);
+      service.genericobject().insert(batchObject).queue(batch, callback);
     }
 
     // Invoke the batch API calls

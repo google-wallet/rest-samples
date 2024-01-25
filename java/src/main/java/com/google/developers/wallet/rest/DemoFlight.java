@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.google.developers.wallet.rest;
 
 // [START setup]
 // [START imports]
@@ -35,8 +36,8 @@ import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
 // [END imports]
 
-/** Demo class for creating and managing Generic passes in Google Wallet. */
-public class DemoGeneric {
+/** Demo class for creating and managing Flights in Google Wallet. */
+public class DemoFlight {
   /**
    * Path to service account key file from Google Cloud Console. Environment variable:
    * GOOGLE_APPLICATION_CREDENTIALS.
@@ -49,11 +50,11 @@ public class DemoGeneric {
   /** Google Wallet service client. */
   public static Walletobjects service;
 
-  public DemoGeneric() throws Exception {
+  public DemoFlight() throws Exception {
     keyFilePath =
         System.getenv().getOrDefault("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/key.json");
 
-    Auth();
+    auth();
   }
   // [END setup]
 
@@ -61,14 +62,13 @@ public class DemoGeneric {
   /**
    * Create authenticated HTTP client using a service account file.
    *
-   * @throws Exception
    */
-  public void Auth() throws Exception {
+  public void auth() throws Exception {
     String scope = "https://www.googleapis.com/auth/wallet_object.issuer";
 
     credentials =
         GoogleCredentials.fromStream(new FileInputStream(keyFilePath))
-            .createScoped(Arrays.asList(scope));
+            .createScoped(List.of(scope));
     credentials.refresh();
 
     HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
@@ -91,14 +91,13 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String CreateClass(String issuerId, String classSuffix) throws IOException {
+  public String createClass(String issuerId, String classSuffix) throws IOException {
     // Check if the class exists
     try {
-      service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+      service.flightclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
 
-      System.out.println(String.format("Class %s.%s already exists!", issuerId, classSuffix));
+      System.out.printf("Class %s.%s already exists!%n", issuerId, classSuffix);
       return String.format("%s.%s", issuerId, classSuffix);
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() != 404) {
@@ -109,10 +108,22 @@ public class DemoGeneric {
     }
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/generic/rest/v1/genericclass
-    GenericClass newClass = new GenericClass().setId(String.format("%s.%s", issuerId, classSuffix));
+    // https://developers.google.com/wallet/tickets/boarding-passes/rest/v1/flightclass
+    FlightClass newClass =
+        new FlightClass()
+            .setId(String.format("%s.%s", issuerId, classSuffix))
+            .setIssuerName("Issuer name")
+            .setReviewStatus("UNDER_REVIEW")
+            .setLocalScheduledDepartureDateTime("2023-07-02T15:30:00")
+            .setFlightHeader(
+                new FlightHeader()
+                    .setCarrier(new FlightCarrier().setCarrierIataCode("LX"))
+                    .setFlightNumber("123"))
+            .setOrigin(new AirportInfo().setAirportIataCode("LAX").setTerminal("1").setGate("A2"))
+            .setDestination(
+                new AirportInfo().setAirportIataCode("SFO").setTerminal("2").setGate("C3"));
 
-    GenericClass response = service.genericclass().insert(newClass).execute();
+    FlightClass response = service.flightclass().insert(newClass).execute();
 
     System.out.println("Class insert response");
     System.out.println(response.toPrettyString());
@@ -130,19 +141,18 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String UpdateClass(String issuerId, String classSuffix) throws IOException {
-    GenericClass updatedClass;
+  public String updateClass(String issuerId, String classSuffix) throws IOException {
+    FlightClass updatedClass;
 
     // Check if the class exists
     try {
       updatedClass =
-          service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+          service.flightclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Class does not exist
-        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        System.out.printf("Class %s.%s not found!%n", issuerId, classSuffix);
         return String.format("%s.%s", issuerId, classSuffix);
       } else {
         // Something else went wrong...
@@ -152,21 +162,18 @@ public class DemoGeneric {
     }
 
     // Class exists
-    // Update the class by adding a link
-    Uri newLink =
+    // Update the class by adding a homepage
+    updatedClass.setHomepageUri(
         new Uri()
             .setUri("https://developers.google.com/wallet")
-            .setDescription("New link description");
+            .setDescription("Homepage description"));
 
-    if (updatedClass.getLinksModuleData() == null) {
-      // LinksModuleData was not set on the original object
-      updatedClass.setLinksModuleData(new LinksModuleData().setUris(new ArrayList<Uri>()));
-    }
-    updatedClass.getLinksModuleData().getUris().add(newLink);
+    // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+    updatedClass.setReviewStatus("UNDER_REVIEW");
 
-    GenericClass response =
+    FlightClass response =
         service
-            .genericclass()
+            .flightclass()
             .update(String.format("%s.%s", issuerId, classSuffix), updatedClass)
             .execute();
 
@@ -186,19 +193,15 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @return The pass class ID: "{issuerId}.{classSuffix}"
-   * @throws IOException
    */
-  public String PatchClass(String issuerId, String classSuffix) throws IOException {
-    GenericClass existingClass;
-
+  public String patchClass(String issuerId, String classSuffix) throws IOException {
     // Check if the class exists
     try {
-      existingClass =
-          service.genericclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+      service.flightclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Class does not exist
-        System.out.println(String.format("Class %s.%s not found!", issuerId, classSuffix));
+        System.out.printf("Class %s.%s not found!%n", issuerId, classSuffix);
         return String.format("%s.%s", issuerId, classSuffix);
       } else {
         // Something else went wrong...
@@ -209,26 +212,19 @@ public class DemoGeneric {
 
     // Class exists
     // Patch the class by adding a homepage
-    GenericClass patchBody = new GenericClass();
+    FlightClass patchBody =
+        new FlightClass()
+            .setHomepageUri(
+                new Uri()
+                    .setUri("https://developers.google.com/wallet")
+                    .setDescription("Homepage description"))
 
-    // Class exists
-    // Update the class by adding a link
-    Uri newLink =
-        new Uri()
-            .setUri("https://developers.google.com/wallet")
-            .setDescription("New link description");
+            // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
+            .setReviewStatus("UNDER_REVIEW");
 
-    if (existingClass.getLinksModuleData() == null) {
-      // LinksModuleData was not set on the original object
-      patchBody.setLinksModuleData(new LinksModuleData().setUris(new ArrayList<Uri>()));
-    } else {
-      patchBody.setLinksModuleData(existingClass.getLinksModuleData());
-    }
-    patchBody.getLinksModuleData().getUris().add(newLink);
-
-    GenericClass response =
+    FlightClass response =
         service
-            .genericclass()
+            .flightclass()
             .patch(String.format("%s.%s", issuerId, classSuffix), patchBody)
             .execute();
 
@@ -239,6 +235,49 @@ public class DemoGeneric {
   }
   // [END patchClass]
 
+  // [START addMessageClass]
+  /**
+   * Add a message to a pass class.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param classSuffix Developer-defined unique ID for this pass class.
+   * @param header The message header.
+   * @param body The message body.
+   * @return The pass class ID: "{issuerId}.{classSuffix}"
+   */
+  public String addClassMessage(String issuerId, String classSuffix, String header, String body)
+      throws IOException {
+    // Check if the class exists
+    try {
+      service.flightclass().get(String.format("%s.%s", issuerId, classSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Class does not exist
+        System.out.printf("Class %s.%s not found!%n", issuerId, classSuffix);
+        return String.format("%s.%s", issuerId, classSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, classSuffix);
+      }
+    }
+
+    AddMessageRequest message =
+        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
+
+    FlightClassAddMessageResponse response =
+        service
+            .flightclass()
+            .addmessage(String.format("%s.%s", issuerId, classSuffix), message)
+            .execute();
+
+    System.out.println("Class addMessage response");
+    System.out.println(response.toPrettyString());
+
+    return String.format("%s.%s", issuerId, classSuffix);
+  }
+  // [END addMessageClass]
+
   // [START createObject]
   /**
    * Create an object.
@@ -247,15 +286,14 @@ public class DemoGeneric {
    * @param classSuffix Developer-defined unique ID for this pass class.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String CreateObject(String issuerId, String classSuffix, String objectSuffix)
+  public String createObject(String issuerId, String classSuffix, String objectSuffix)
       throws IOException {
     // Check if the object exists
     try {
-      service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+      service.flightobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
 
-      System.out.println(String.format("Object %s.%s already exists!", issuerId, objectSuffix));
+      System.out.printf("Object %s.%s already exists!%n", issuerId, objectSuffix);
       return String.format("%s.%s", issuerId, objectSuffix);
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() != 404) {
@@ -266,9 +304,9 @@ public class DemoGeneric {
     }
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/generic/rest/v1/genericobject
-    GenericObject newObject =
-        new GenericObject()
+    // https://developers.google.com/wallet/tickets/boarding-passes/rest/v1/flightobject
+    FlightObject newObject =
+        new FlightObject()
             .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
@@ -285,11 +323,11 @@ public class DemoGeneric {
                                     .setLanguage("en-US")
                                     .setValue("Hero image description"))))
             .setTextModulesData(
-                Arrays.asList(
-                    new TextModuleData()
-                        .setHeader("Text module header")
-                        .setBody("Text module body")
-                        .setId("TEXT_MODULE_ID")))
+                    List.of(
+                            new TextModuleData()
+                                    .setHeader("Text module header")
+                                    .setBody("Text module body")
+                                    .setId("TEXT_MODULE_ID")))
             .setLinksModuleData(
                 new LinksModuleData()
                     .setUris(
@@ -303,45 +341,33 @@ public class DemoGeneric {
                                 .setDescription("Link module tel description")
                                 .setId("LINK_MODULE_TEL_ID"))))
             .setImageModulesData(
-                Arrays.asList(
-                    new ImageModuleData()
-                        .setMainImage(
-                            new Image()
-                                .setSourceUri(
-                                    new ImageUri()
-                                        .setUri(
-                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                .setContentDescription(
-                                    new LocalizedString()
-                                        .setDefaultValue(
-                                            new TranslatedString()
-                                                .setLanguage("en-US")
-                                                .setValue("Image module description"))))
-                        .setId("IMAGE_MODULE_ID")))
+                    List.of(
+                            new ImageModuleData()
+                                    .setMainImage(
+                                            new Image()
+                                                    .setSourceUri(
+                                                            new ImageUri()
+                                                                    .setUri(
+                                                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                    .setContentDescription(
+                                                            new LocalizedString()
+                                                                    .setDefaultValue(
+                                                                            new TranslatedString()
+                                                                                    .setLanguage("en-US")
+                                                                                    .setValue("Image module description"))))
+                                    .setId("IMAGE_MODULE_ID")))
             .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-            .setCardTitle(
-                new LocalizedString()
-                    .setDefaultValue(
-                        new TranslatedString().setLanguage("en-US").setValue("Generic card title")))
-            .setHeader(
-                new LocalizedString()
-                    .setDefaultValue(
-                        new TranslatedString().setLanguage("en-US").setValue("Generic header")))
-            .setHexBackgroundColor("#4285f4")
-            .setLogo(
-                new Image()
-                    .setSourceUri(
-                        new ImageUri()
-                            .setUri(
-                                "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
-                    .setContentDescription(
-                        new LocalizedString()
-                            .setDefaultValue(
-                                new TranslatedString()
-                                    .setLanguage("en-US")
-                                    .setValue("Generic card logo"))));
+            .setLocations(
+                    List.of(
+                            new LatLongPoint()
+                                    .setLatitude(37.424015499999996)
+                                    .setLongitude(-122.09259560000001)))
+            .setPassengerName("Passenger name")
+            .setBoardingAndSeatingInfo(
+                new BoardingAndSeatingInfo().setBoardingGroup("B").setSeatNumber("42"))
+            .setReservationInfo(new ReservationInfo().setConfirmationCode("Confirmation code"));
 
-    GenericObject response = service.genericobject().insert(newObject).execute();
+    FlightObject response = service.flightobject().insert(newObject).execute();
 
     System.out.println("Object insert response");
     System.out.println(response.toPrettyString());
@@ -359,19 +385,18 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String UpdateObject(String issuerId, String objectSuffix) throws IOException {
-    GenericObject updatedObject;
+  public String updateObject(String issuerId, String objectSuffix) throws IOException {
+    FlightObject updatedObject;
 
     // Check if the object exists
     try {
       updatedObject =
-          service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+          service.flightobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -389,14 +414,14 @@ public class DemoGeneric {
 
     if (updatedObject.getLinksModuleData() == null) {
       // LinksModuleData was not set on the original object
-      updatedObject.setLinksModuleData(new LinksModuleData().setUris(Arrays.asList(newLink)));
+      updatedObject.setLinksModuleData(new LinksModuleData().setUris(List.of(newLink)));
     } else {
       updatedObject.getLinksModuleData().getUris().add(newLink);
     }
 
-    GenericObject response =
+    FlightObject response =
         service
-            .genericobject()
+            .flightobject()
             .update(String.format("%s.%s", issuerId, objectSuffix), updatedObject)
             .execute();
 
@@ -414,19 +439,18 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String PatchObject(String issuerId, String objectSuffix) throws IOException {
-    GenericObject existingObject;
+  public String patchObject(String issuerId, String objectSuffix) throws IOException {
+    FlightObject existingObject;
 
     // Check if the object exists
     try {
       existingObject =
-          service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+          service.flightobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -442,7 +466,7 @@ public class DemoGeneric {
             .setUri("https://developers.google.com/wallet")
             .setDescription("New link description");
 
-    GenericObject patchBody = new GenericObject();
+    FlightObject patchBody = new FlightObject();
 
     if (existingObject.getLinksModuleData() == null) {
       // LinksModuleData was not set on the original object
@@ -452,9 +476,9 @@ public class DemoGeneric {
     }
     patchBody.getLinksModuleData().getUris().add(newLink);
 
-    GenericObject response =
+    FlightObject response =
         service
-            .genericobject()
+            .flightobject()
             .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
             .execute();
 
@@ -475,16 +499,15 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @param objectSuffix Developer-defined unique ID for this pass object.
    * @return The pass object ID: "{issuerId}.{objectSuffix}"
-   * @throws IOException
    */
-  public String ExpireObject(String issuerId, String objectSuffix) throws IOException {
+  public String expireObject(String issuerId, String objectSuffix) throws IOException {
     // Check if the object exists
     try {
-      service.genericobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+      service.flightobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
     } catch (GoogleJsonResponseException ex) {
       if (ex.getStatusCode() == 404) {
         // Object does not exist
-        System.out.println(String.format("Object %s.%s not found!", issuerId, objectSuffix));
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
         return String.format("%s.%s", issuerId, objectSuffix);
       } else {
         // Something else went wrong...
@@ -494,11 +517,11 @@ public class DemoGeneric {
     }
 
     // Patch the object, setting the pass as expired
-    GenericObject patchBody = new GenericObject().setState("EXPIRED");
+    FlightObject patchBody = new FlightObject().setState("EXPIRED");
 
-    GenericObject response =
+    FlightObject response =
         service
-            .genericobject()
+            .flightobject()
             .patch(String.format("%s.%s", issuerId, objectSuffix), patchBody)
             .execute();
 
@@ -508,6 +531,49 @@ public class DemoGeneric {
     return response.getId();
   }
   // [END expireObject]
+
+  // [START addMessageObject]
+  /**
+   * Add a message to a pass object.
+   *
+   * @param issuerId The issuer ID being used for this request.
+   * @param objectSuffix Developer-defined unique ID for this pass object.
+   * @param header The message header.
+   * @param body The message body.
+   * @return The pass object ID: "{issuerId}.{objectSuffix}"
+   */
+  public String addObjectMessage(String issuerId, String objectSuffix, String header, String body)
+      throws IOException {
+    // Check if the object exists
+    try {
+      service.flightobject().get(String.format("%s.%s", issuerId, objectSuffix)).execute();
+    } catch (GoogleJsonResponseException ex) {
+      if (ex.getStatusCode() == 404) {
+        // Object does not exist
+        System.out.printf("Object %s.%s not found!%n", issuerId, objectSuffix);
+        return String.format("%s.%s", issuerId, objectSuffix);
+      } else {
+        // Something else went wrong...
+        ex.printStackTrace();
+        return String.format("%s.%s", issuerId, objectSuffix);
+      }
+    }
+
+    AddMessageRequest message =
+        new AddMessageRequest().setMessage(new Message().setHeader(header).setBody(body));
+
+    FlightObjectAddMessageResponse response =
+        service
+            .flightobject()
+            .addmessage(String.format("%s.%s", issuerId, objectSuffix), message)
+            .execute();
+
+    System.out.println("Object addMessage response");
+    System.out.println(response.toPrettyString());
+
+    return String.format("%s.%s", issuerId, objectSuffix);
+  }
+  // [END addMessageObject]
 
   // [START jwtNew]
   /**
@@ -522,15 +588,27 @@ public class DemoGeneric {
    * @param objectSuffix Developer-defined unique ID for the pass object.
    * @return An "Add to Google Wallet" link.
    */
-  public String CreateJWTNewObjects(String issuerId, String classSuffix, String objectSuffix) {
+  public String createJWTNewObjects(String issuerId, String classSuffix, String objectSuffix) {
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/generic/rest/v1/genericclass
-    GenericClass newClass = new GenericClass().setId(String.format("%s.%s", issuerId, classSuffix));
+    // https://developers.google.com/wallet/tickets/boarding-passes/rest/v1/flightclass
+    FlightClass newClass =
+        new FlightClass()
+            .setId(String.format("%s.%s", issuerId, classSuffix))
+            .setIssuerName("Issuer name")
+            .setReviewStatus("UNDER_REVIEW")
+            .setLocalScheduledDepartureDateTime("2023-07-02T15:30:00")
+            .setFlightHeader(
+                new FlightHeader()
+                    .setCarrier(new FlightCarrier().setCarrierIataCode("LX"))
+                    .setFlightNumber("123"))
+            .setOrigin(new AirportInfo().setAirportIataCode("LAX").setTerminal("1").setGate("A2"))
+            .setDestination(
+                new AirportInfo().setAirportIataCode("SFO").setTerminal("2").setGate("C3"));
 
     // See link below for more information on required properties
-    // https://developers.google.com/wallet/generic/rest/v1/genericobject
-    GenericObject newObject =
-        new GenericObject()
+    // https://developers.google.com/wallet/tickets/boarding-passes/rest/v1/flightobject
+    FlightObject newObject =
+        new FlightObject()
             .setId(String.format("%s.%s", issuerId, objectSuffix))
             .setClassId(String.format("%s.%s", issuerId, classSuffix))
             .setState("ACTIVE")
@@ -547,11 +625,11 @@ public class DemoGeneric {
                                     .setLanguage("en-US")
                                     .setValue("Hero image description"))))
             .setTextModulesData(
-                Arrays.asList(
-                    new TextModuleData()
-                        .setHeader("Text module header")
-                        .setBody("Text module body")
-                        .setId("TEXT_MODULE_ID")))
+                    List.of(
+                            new TextModuleData()
+                                    .setHeader("Text module header")
+                                    .setBody("Text module body")
+                                    .setId("TEXT_MODULE_ID")))
             .setLinksModuleData(
                 new LinksModuleData()
                     .setUris(
@@ -565,55 +643,43 @@ public class DemoGeneric {
                                 .setDescription("Link module tel description")
                                 .setId("LINK_MODULE_TEL_ID"))))
             .setImageModulesData(
-                Arrays.asList(
-                    new ImageModuleData()
-                        .setMainImage(
-                            new Image()
-                                .setSourceUri(
-                                    new ImageUri()
-                                        .setUri(
-                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                .setContentDescription(
-                                    new LocalizedString()
-                                        .setDefaultValue(
-                                            new TranslatedString()
-                                                .setLanguage("en-US")
-                                                .setValue("Image module description"))))
-                        .setId("IMAGE_MODULE_ID")))
+                    List.of(
+                            new ImageModuleData()
+                                    .setMainImage(
+                                            new Image()
+                                                    .setSourceUri(
+                                                            new ImageUri()
+                                                                    .setUri(
+                                                                            "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                    .setContentDescription(
+                                                            new LocalizedString()
+                                                                    .setDefaultValue(
+                                                                            new TranslatedString()
+                                                                                    .setLanguage("en-US")
+                                                                                    .setValue("Image module description"))))
+                                    .setId("IMAGE_MODULE_ID")))
             .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-            .setCardTitle(
-                new LocalizedString()
-                    .setDefaultValue(
-                        new TranslatedString().setLanguage("en-US").setValue("Generic card title")))
-            .setHeader(
-                new LocalizedString()
-                    .setDefaultValue(
-                        new TranslatedString().setLanguage("en-US").setValue("Generic header")))
-            .setHexBackgroundColor("#4285f4")
-            .setLogo(
-                new Image()
-                    .setSourceUri(
-                        new ImageUri()
-                            .setUri(
-                                "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
-                    .setContentDescription(
-                        new LocalizedString()
-                            .setDefaultValue(
-                                new TranslatedString()
-                                    .setLanguage("en-US")
-                                    .setValue("Generic card logo"))));
+            .setLocations(
+                    List.of(
+                            new LatLongPoint()
+                                    .setLatitude(37.424015499999996)
+                                    .setLongitude(-122.09259560000001)))
+            .setPassengerName("Passenger name")
+            .setBoardingAndSeatingInfo(
+                new BoardingAndSeatingInfo().setBoardingGroup("B").setSeatNumber("42"))
+            .setReservationInfo(new ReservationInfo().setConfirmationCode("Confirmation code"));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
     claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
     claims.put("aud", "google");
-    claims.put("origins", Arrays.asList("www.example.com"));
+    claims.put("origins", List.of("www.example.com"));
     claims.put("typ", "savetowallet");
 
     // Create the Google Wallet payload and add to the JWT
     HashMap<String, Object> payload = new HashMap<String, Object>();
-    payload.put("genericClasses", Arrays.asList(newClass));
-    payload.put("genericObjects", Arrays.asList(newObject));
+    payload.put("flightClasses", List.of(newClass));
+    payload.put("flightObjects", List.of(newObject));
     claims.put("payload", payload);
 
     // The service account credentials are used to sign the JWT
@@ -623,7 +689,7 @@ public class DemoGeneric {
     String token = JWT.create().withPayload(claims).sign(algorithm);
 
     System.out.println("Add to Google Wallet link");
-    System.out.println(String.format("https://pay.google.com/gp/v/save/%s", token));
+    System.out.printf("https://pay.google.com/gp/v/save/%s%n", token);
 
     return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
@@ -644,7 +710,7 @@ public class DemoGeneric {
    * @param issuerId The issuer ID being used for this request.
    * @return An "Add to Google Wallet" link.
    */
-  public String CreateJWTExistingObjects(String issuerId) {
+  public String createJWTExistingObjects(String issuerId) {
     // Multiple pass types can be added at the same time
     // At least one type must be specified in the JWT claims
     // Note: Make sure to replace the placeholder class and object suffixes
@@ -653,64 +719,64 @@ public class DemoGeneric {
     // Event tickets
     objectsToAdd.put(
         "eventTicketObjects",
-        Arrays.asList(
-            new EventTicketObject()
-                .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
+            List.of(
+                    new EventTicketObject()
+                            .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
 
     // Boarding passes
     objectsToAdd.put(
         "flightObjects",
-        Arrays.asList(
-            new FlightObject()
-                .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
+            List.of(
+                    new FlightObject()
+                            .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
 
     // Generic passes
     objectsToAdd.put(
         "genericObjects",
-        Arrays.asList(
-            new GenericObject()
-                .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
+            List.of(
+                    new GenericObject()
+                            .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
 
     // Gift cards
     objectsToAdd.put(
         "giftCardObjects",
-        Arrays.asList(
-            new GiftCardObject()
-                .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
+            List.of(
+                    new GiftCardObject()
+                            .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
 
     // Loyalty cards
     objectsToAdd.put(
         "loyaltyObjects",
-        Arrays.asList(
-            new LoyaltyObject()
-                .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
+            List.of(
+                    new LoyaltyObject()
+                            .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
 
     // Offers
     objectsToAdd.put(
         "offerObjects",
-        Arrays.asList(
-            new OfferObject()
-                .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
+            List.of(
+                    new OfferObject()
+                            .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
 
     // Transit passes
     objectsToAdd.put(
         "transitObjects",
-        Arrays.asList(
-            new TransitObject()
-                .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
-                .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
+            List.of(
+                    new TransitObject()
+                            .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
+                            .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
     claims.put("iss", ((ServiceAccountCredentials) credentials).getClientEmail());
     claims.put("aud", "google");
-    claims.put("origins", Arrays.asList("www.example.com"));
+    claims.put("origins", List.of("www.example.com"));
     claims.put("typ", "savetowallet");
     claims.put("payload", objectsToAdd);
 
@@ -721,7 +787,7 @@ public class DemoGeneric {
     String token = JWT.create().withPayload(claims).sign(algorithm);
 
     System.out.println("Add to Google Wallet link");
-    System.out.println(String.format("https://pay.google.com/gp/v/save/%s", token));
+    System.out.printf("https://pay.google.com/gp/v/save/%s%n", token);
 
     return String.format("https://pay.google.com/gp/v/save/%s", token);
   }
@@ -733,17 +799,16 @@ public class DemoGeneric {
    *
    * @param issuerId The issuer ID being used for this request.
    * @param classSuffix Developer-defined unique ID for this pass class.
-   * @throws IOException
    */
-  public void BatchCreateObjects(String issuerId, String classSuffix) throws IOException {
+  public void batchCreateObjects(String issuerId, String classSuffix) throws IOException {
     // Create the batch request client
     BatchRequest batch = service.batch(new HttpCredentialsAdapter(credentials));
 
     // The callback will be invoked for each request in the batch
-    JsonBatchCallback<GenericObject> callback =
-        new JsonBatchCallback<GenericObject>() {
+    JsonBatchCallback<FlightObject> callback =
+        new JsonBatchCallback<FlightObject>() {
           // Invoked if the request was successful
-          public void onSuccess(GenericObject response, HttpHeaders responseHeaders) {
+          public void onSuccess(FlightObject response, HttpHeaders responseHeaders) {
             System.out.println("Batch insert response");
             System.out.println(response.toString());
           }
@@ -760,9 +825,9 @@ public class DemoGeneric {
       String objectSuffix = UUID.randomUUID().toString().replaceAll("[^\\w.-]", "_");
 
       // See link below for more information on required properties
-      // https://developers.google.com/wallet/generic/rest/v1/genericobject
-      GenericObject batchObject =
-          new GenericObject()
+      // https://developers.google.com/wallet/tickets/boarding-passes/rest/v1/flightobject
+      FlightObject batchObject =
+          new FlightObject()
               .setId(String.format("%s.%s", issuerId, objectSuffix))
               .setClassId(String.format("%s.%s", issuerId, classSuffix))
               .setState("ACTIVE")
@@ -779,11 +844,11 @@ public class DemoGeneric {
                                       .setLanguage("en-US")
                                       .setValue("Hero image description"))))
               .setTextModulesData(
-                  Arrays.asList(
-                      new TextModuleData()
-                          .setHeader("Text module header")
-                          .setBody("Text module body")
-                          .setId("TEXT_MODULE_ID")))
+                      List.of(
+                              new TextModuleData()
+                                      .setHeader("Text module header")
+                                      .setBody("Text module body")
+                                      .setId("TEXT_MODULE_ID")))
               .setLinksModuleData(
                   new LinksModuleData()
                       .setUris(
@@ -797,47 +862,33 @@ public class DemoGeneric {
                                   .setDescription("Link module tel description")
                                   .setId("LINK_MODULE_TEL_ID"))))
               .setImageModulesData(
-                  Arrays.asList(
-                      new ImageModuleData()
-                          .setMainImage(
-                              new Image()
-                                  .setSourceUri(
-                                      new ImageUri()
-                                          .setUri(
-                                              "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
-                                  .setContentDescription(
-                                      new LocalizedString()
-                                          .setDefaultValue(
-                                              new TranslatedString()
-                                                  .setLanguage("en-US")
-                                                  .setValue("Image module description"))))
-                          .setId("IMAGE_MODULE_ID")))
+                      List.of(
+                              new ImageModuleData()
+                                      .setMainImage(
+                                              new Image()
+                                                      .setSourceUri(
+                                                              new ImageUri()
+                                                                      .setUri(
+                                                                              "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"))
+                                                      .setContentDescription(
+                                                              new LocalizedString()
+                                                                      .setDefaultValue(
+                                                                              new TranslatedString()
+                                                                                      .setLanguage("en-US")
+                                                                                      .setValue("Image module description"))))
+                                      .setId("IMAGE_MODULE_ID")))
               .setBarcode(new Barcode().setType("QR_CODE").setValue("QR code value"))
-              .setCardTitle(
-                  new LocalizedString()
-                      .setDefaultValue(
-                          new TranslatedString()
-                              .setLanguage("en-US")
-                              .setValue("Generic card title")))
-              .setHeader(
-                  new LocalizedString()
-                      .setDefaultValue(
-                          new TranslatedString().setLanguage("en-US").setValue("Generic header")))
-              .setHexBackgroundColor("#4285f4")
-              .setLogo(
-                  new Image()
-                      .setSourceUri(
-                          new ImageUri()
-                              .setUri(
-                                  "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"))
-                      .setContentDescription(
-                          new LocalizedString()
-                              .setDefaultValue(
-                                  new TranslatedString()
-                                      .setLanguage("en-US")
-                                      .setValue("Generic card logo"))));
+              .setLocations(
+                      List.of(
+                              new LatLongPoint()
+                                      .setLatitude(37.424015499999996)
+                                      .setLongitude(-122.09259560000001)))
+              .setPassengerName("Passenger name")
+              .setBoardingAndSeatingInfo(
+                  new BoardingAndSeatingInfo().setBoardingGroup("B").setSeatNumber("42"))
+              .setReservationInfo(new ReservationInfo().setConfirmationCode("Confirmation code"));
 
-      service.genericobject().insert(batchObject).queue(batch, callback);
+      service.flightobject().insert(batchObject).queue(batch, callback);
     }
 
     // Invoke the batch API calls

@@ -8,17 +8,17 @@ creating a pass class, updating issuer permissions, and more.
 
 | Pass type                  | File                                                         |
 |----------------------------|--------------------------------------------------------------|
-| Event tickets              | [DemoEventTicket.java](./src/main/java/DemoEventTicket.java) |
-| Flight boarding passes     | [DemoFlight.java](./src/main/java/DemoFlight.java)           |
-| Generic passes             | [DemoGeneric.java](./src/main/java/DemoGeneric.java)         |
-| Gift cards                 | [DemoGiftCard.java](./src/main/java/DemoGiftCard.java)       |
-| Loyalty program membership | [DemoLoyalty.java](./src/main/java/DemoLoyalty.java)         |
-| Offers and promotions      | [DemoOffer.java](./src/main/java/DemoOffer.java)             |
-| Transit passes             | [DemoTransit.java](./src/main/java/DemoTransit.java)         |
+| Event tickets              | [com.google.developers.wallet.rest.DemoEventTicket.java](./src/main/java/com.google.developers.wallet.rest.DemoEventTicket.java) |
+| Flight boarding passes     | [com.google.developers.wallet.rest.DemoFlight.java](./src/main/java/com.google.developers.wallet.rest.DemoFlight.java)           |
+| Generic passes             | [com.google.developers.wallet.rest.DemoGeneric.java](./src/main/java/com.google.developers.wallet.rest.DemoGeneric.java)         |
+| Gift cards                 | [com.google.developers.wallet.rest.DemoGiftCard.java](./src/main/java/com.google.developers.wallet.rest.DemoGiftCard.java)       |
+| Loyalty program membership | [com.google.developers.wallet.rest.DemoLoyalty.java](./src/main/java/com.google.developers.wallet.rest.DemoLoyalty.java)         |
+| Offers and promotions      | [com.google.developers.wallet.rest.DemoOffer.java](./src/main/java/com.google.developers.wallet.rest.DemoOffer.java)             |
+| Transit passes             | [com.google.developers.wallet.rest.DemoTransit.java](./src/main/java/com.google.developers.wallet.rest.DemoTransit.java)         |
 
 ## Prerequisites
 
-*   Java 17+
+*   Java 11+
 *   JDK 11+
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
@@ -54,41 +54,41 @@ for each class file.
     ```java
     // Create a demo class instance
     // Creates the authenticated HTTP client
-    DemoEventTicket demo = new DemoEventTicket();
+    com.google.developers.wallet.rest.DemoEventTicket demo = new com.google.developers.wallet.rest.DemoEventTicket();
 
     // Create a pass class
-    demo.CreateClass("issuer_id", "class_suffix");
+    demo.createClass("issuer_id", "class_suffix");
 
     // Update a pass class
-    demo.UpdateClass("issuer_id", "class_suffix");
+    demo.updateClass("issuer_id", "class_suffix");
 
     // Patch a pass class
-    demo.PatchClass("issuer_id", "class_suffix");
+    demo.patchClass("issuer_id", "class_suffix");
 
     // Add a message to a pass class
-    demo.AddClassMessage("issuer_id", "class_suffix", "header", "body");
+    demo.addClassMessage("issuer_id", "class_suffix", "header", "body");
 
     // Create a pass object
-    demo.CreateObject("issuer_id", "class_suffix", "object_suffix");
+    demo.createObject("issuer_id", "class_suffix", "object_suffix");
 
     // Update a pass object
-    demo.UpdateObject("issuer_id", "object_suffix");
+    demo.updateObject("issuer_id", "object_suffix");
 
     // Patch a pass object
-    demo.PatchObject("issuer_id", "object_suffix");
+    demo.patchObject("issuer_id", "object_suffix");
 
     // Add a message to a pass object
-    demo.AddObjectMessage("issuer_id", "object_suffix", "header", "body");
+    demo.addObjectMessage("issuer_id", "object_suffix", "header", "body");
 
     // Expire a pass object
-    demo.ExpireObject("issuer_id", "object_suffix");
+    demo.expireObject("issuer_id", "object_suffix");
 
     // Generate an Add to Google Wallet link that creates a new pass class and object
-    demo.CreateJWTNewObjects("issuer_id", "class_suffix", "object_suffix");
+    demo.createJWTNewObjects("issuer_id", "class_suffix", "object_suffix");
 
     // Generate an Add to Google Wallet link that references existing pass object(s)
-    demo.CreateJWTExistingObjects("issuer_id");
+    demo.createJWTExistingObjects("issuer_id");
 
     // Create pass objects in batch
-    demo.BatchCreateObjects("issuer_id", "class_suffix");
+    demo.batchCreateObjects("issuer_id", "class_suffix");
     ```

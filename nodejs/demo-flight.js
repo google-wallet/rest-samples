@@ -951,7 +951,7 @@ class DemoFlight {
 
     // Invoke the batch API calls
     let response = await this.httpClient.request({
-      url: this.batchUrl,
+      url: this.batchUrl, // https://walletobjects.googleapis.com/batch
       method: 'POST',
       data: data,
       headers: {

@@ -911,7 +911,7 @@ class DemoTransit:
 
         # Invoke the batch API calls
         response = self.http_client.post(
-            url='https://walletobjects.googleapis.com/batch',
+            url=self.batch_url, # https://walletobjects.googleapis.com/batch
             data=data,
             headers={
                 # `boundary` is the delimiter between API calls in the batch request
