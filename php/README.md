@@ -23,8 +23,6 @@ creating a pass class, updating issuer permissions, and more.
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
     to create the Google Wallet issuer account and Google Cloud service account
-*   Download the PHP
-    [Google Wallet API Client library](https://developers.google.com/wallet/generic/resources/libraries#php)
 
 ## Environment variables
 
@@ -45,17 +43,7 @@ for each class file.
     composer install
     ```
 
-2.  Copy the path to the Google Wallet API Client library (`Walletobjects.php`
-    file) you downloaded. If needed, update the path in the demo class PHP file
-    (line 22).
-
-    ```php
-    // Download the PHP client library from the following URL
-    // https://developers.google.com/wallet/generic/resources/libraries
-    require __DIR__ . '/lib/Walletobjects.php';
-    ```
-
-3.  In your PHP code, import a demo class and call its method(s). An example
+2.  In your PHP code, import a demo class and call its method(s). An example
     can be found below
 
     ```php
