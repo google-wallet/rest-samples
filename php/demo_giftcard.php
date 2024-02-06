@@ -80,17 +80,15 @@ class DemoGiftCard
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
     $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
     $this->service = new Walletobjects($this->client);
@@ -110,7 +108,7 @@ class DemoGiftCard
   {
     // Check if the class exists
     try {
-      $this->service->eventticketclass->get("{$issuerId}.{$classSuffix}");
+      $this->service->giftcardclass->get("{$issuerId}.{$classSuffix}");
 
       print("Class {$issuerId}.{$classSuffix} already exists!");
       return "{$issuerId}.{$classSuffix}";

@@ -48,44 +48,47 @@ for each class file.
 
     ```php
     // Import the demo class
-    require __DIR__ . 'demo_eventticket.php';
+    require __DIR__ . '/demo_eventticket.php';
+
+    // Your Issuer account ID (@see Prerequisites)
+    $issuerId = '3388000000000000000';
 
     // Create a demo class instance
     $demo = new DemoEventTicket();
 
     // Create a pass class
-    $demo->createClass('issuer_id', 'class_suffix');
+    $demo->createClass($issuerId, 'class_suffix');
 
     // Update a pass class
-    $demo->updateClass('issuer_id', 'class_suffix');
+    $demo->updateClass($issuerId, 'class_suffix');
 
     // Patch a pass class
-    $demo->patchClass('issuer_id', 'class_suffix');
+    $demo->patchClass($issuerId, 'class_suffix');
 
     // Add a message to a pass class
-    $demo->addClassMessage('issuer_id', 'class_suffix', 'header', 'body');
+    $demo->addClassMessage($issuerId, 'class_suffix', 'header', 'body');
 
     // Create a pass object
-    $demo->createObject('issuer_id', 'class_suffix', 'object_suffix');
+    $demo->createObject($issuerId, 'class_suffix', 'object_suffix');
 
     // Update a pass object
-    $demo->updateObject('issuer_id', 'object_suffix');
+    $demo->updateObject($issuerId, 'object_suffix');
 
     // Patch a pass object
-    $demo->patchObject('issuer_id', 'object_suffix');
+    $demo->patchObject($issuerId, 'object_suffix');
 
     // Add a message to a pass object
-    $demo->addObjectMessage('issuer_id', 'object_suffix', 'header', 'body');
+    $demo->addObjectMessage($issuerId, 'object_suffix', 'header', 'body');
 
     // Expire a pass object
-    $demo->expireObject('issuer_id', 'object_suffix');
+    $demo->expireObject($issuerId, 'object_suffix');
 
     // Generate an Add to Google Wallet link that creates a new pass class and object
-    $demo->createJWTNewObjects('issuer_id', 'class_suffix', 'object_suffix');
+    $demo->createJWTNewObjects($issuerId, 'class_suffix', 'object_suffix');
 
     // Generate an Add to Google Wallet link that references existing pass object(s)
-    $demo->createJWTExistingObjects('issuer_id');
+    $demo->createJWTExistingObjects($issuerId);
 
     // Create pass objects in batch
-    $demo->batchCreateObjects('issuer_id', 'class_suffix');
+    $demo->batchCreateObjects($issuerId, 'class_suffix');
     ```

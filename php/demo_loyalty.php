@@ -80,17 +80,15 @@ class DemoLoyalty
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
     $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
     $this->service = new Walletobjects($this->client);
