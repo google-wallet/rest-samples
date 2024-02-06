@@ -18,7 +18,7 @@ creating a pass class, updating issuer permissions, and more.
 
 ## Prerequisites
 
-*   PHP 8.x
+*   PHP 7.4
 *   Composer 2.x
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
