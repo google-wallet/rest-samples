@@ -1,7 +1,8 @@
 {
   "dependencies": {
-    "google-auth-library": "^5.9.2",
-    "jsonwebtoken": "^8.5.1",
+    "@googleapis/walletobjects": "^1.0.0",
+    "googleapis": "^133.0.0",
+    "jsonwebtoken": "^9.0.2",
     "uuidv4": "^6.2.13"
   }
 }
