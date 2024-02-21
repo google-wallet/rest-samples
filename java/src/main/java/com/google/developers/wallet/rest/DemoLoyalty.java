@@ -26,7 +26,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.*;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.walletobjects.Walletobjects;
+import com.google.api.services.walletobjects.*;
 import com.google.api.services.walletobjects.model.*;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -64,11 +64,9 @@ public class DemoLoyalty {
    *
    */
   public void auth() throws Exception {
-    String scope = "https://www.googleapis.com/auth/wallet_object.issuer";
-
     credentials =
         GoogleCredentials.fromStream(new FileInputStream(keyFilePath))
-            .createScoped(List.of(scope));
+            .createScoped(List.of(WalletobjectsScopes.WALLET_OBJECT_ISSUER));
     credentials.refresh();
 
     HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
