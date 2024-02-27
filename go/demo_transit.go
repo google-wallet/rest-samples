@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
@@ -27,35 +28,34 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthJwt "golang.org/x/oauth2/jwt"
+	"google.golang.org/api/option"
+	"google.golang.org/api/walletobjects/v1"
 	"io"
-	"net/http"
+	"log"
 	"os"
 	"strings"
 )
 
 // [END imports]
-
-const (
-	batchUrl  = "https://walletobjects.googleapis.com/batch"
-	classUrl  = "https://walletobjects.googleapis.com/walletobjects/v1/transitClass"
-	objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/transitObject"
-)
-
 // [END setup]
 
 type demoTransit struct {
-	credentials                   *oauthJwt.Config
-	httpClient                    *http.Client
-	batchUrl, classUrl, objectUrl string
+	credentials *oauthJwt.Config
+	service     *walletobjects.Service
 }
 
 // [START auth]
 // Create authenticated HTTP client using a service account file.
 func (d *demoTransit) auth() {
-	b, _ := os.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	credentials, _ := google.JWTConfigFromJSON(b, "https://www.googleapis.com/auth/wallet_object.issuer")
+	credentialsFile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	b, _ := os.ReadFile(credentialsFile)
+	credentials, err := google.JWTConfigFromJSON(b, walletobjects.WalletObjectIssuerScope)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalf("Unable to load credentials: %v", err)
+	}
 	d.credentials = credentials
-	d.httpClient = d.credentials.Client(oauth2.NoContext)
+	d.service, _ = walletobjects.NewService(context.Background(), option.WithCredentialsFile(credentialsFile))
 }
 
 // [END auth]
@@ -63,33 +63,22 @@ func (d *demoTransit) auth() {
 // [START createClass]
 // Create a class.
 func (d *demoTransit) createClass(issuerId, classSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"logo": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Logo description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://live.staticflickr.com/65535/48690277162_cd05f03f4d_o.png"
-			}
+	logo := walletobjects.Image{
+		SourceUri: &walletobjects.ImageUri{
+			Uri: "http://farm8.staticflickr.com/7340/11177041185_a61a7f2139_o.jpg",
 		},
-		"issuerName": "Issuer name",
-		"reviewStatus": "UNDER_REVIEW",
-		"id": "%s.%s",
-		"transitType": "BUS"
 	}
-	`, issuerId, classSuffix)
-
-	res, err := d.httpClient.Post(classUrl, "application/json", bytes.NewBuffer([]byte(newClass)))
-
+	transitClass := new(walletobjects.TransitClass)
+	transitClass.Id = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	transitClass.IssuerName = "Issuer name"
+	transitClass.ReviewStatus = "UNDER_REVIEW"
+	transitClass.Logo = &logo
+	transitClass.TransitType = "BUS"
+	res, err := d.service.Transitclass.Insert(transitClass).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert class: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Class insert response:\n%s\n", b)
+		fmt.Printf("Class insert id:\n%v\n", res.Id)
 	}
 }
 
@@ -98,106 +87,68 @@ func (d *demoTransit) createClass(issuerId, classSuffix string) {
 // [START createObject]
 // Create an object.
 func (d *demoTransit) createObject(issuerId, classSuffix, objectSuffix string) {
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"passengerNames": "Passenger names",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"ticketLeg": {
-			"destinationStationCode": "SFO",
-			"destinationName": {
-				"defaultValue": {
-					"value": "Destination name",
-					"language": "en-US"
-				}
-			},
-			"arrivalDateTime": "2020-04-12T20:20:50.52Z",
-			"originStationCode": "LA",
-			"originName": {
-				"defaultValue": {
-					"value": "Origin name",
-					"language": "en-US"
-				}
-			},
-			"departureDateTime": "2020-04-12T16:20:50.52Z",
-			"fareName": {
-				"defaultValue": {
-					"value": "Fare name",
-					"language": "en-US"
-				}
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"passengerType": "SINGLE_PASSENGER",
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"tripType": "ONE_WAY",
-		"id": "%s.%s"
+	transitObject := new(walletobjects.TransitObject)
+	transitObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	transitObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	transitObject.State = "ACTIVE"
+	transitObject.PassengerNames = "Passenger names"
+	transitObject.TripType = "ONE_WAY"
+	transitObject.PassengerType = "SINGLE_PASSENGER"
+	transitObject.TicketLeg = &walletobjects.TicketLeg{
+		DestinationStationCode: "SFO",
+		OriginStationCode:      "LA",
 	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
-
-	res, err := d.httpClient.Post(objectUrl, "application/json", bytes.NewBuffer([]byte(newObject)))
-
+	transitObject.HeroImage = &walletobjects.Image{
+		SourceUri: &walletobjects.ImageUri{
+			Uri: "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+		},
+	}
+	transitObject.Barcode = &walletobjects.Barcode{
+		Type:  "QR_CODE",
+		Value: "QR code",
+	}
+	transitObject.Locations = []*walletobjects.LatLongPoint{
+		&walletobjects.LatLongPoint{
+			Latitude:  37.424015499999996,
+			Longitude: -122.09259560000001,
+		},
+	}
+	transitObject.LinksModuleData = &walletobjects.LinksModuleData{
+		Uris: []*walletobjects.Uri{
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_URI_ID",
+				Uri:         "http://maps.google.com/",
+				Description: "Link module URI description",
+			},
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_TEL_ID",
+				Uri:         "tel:6505555555",
+				Description: "Link module tel description",
+			},
+		},
+	}
+	transitObject.ImageModulesData = []*walletobjects.ImageModuleData{
+		&walletobjects.ImageModuleData{
+			Id: "IMAGE_MODULE_ID",
+			MainImage: &walletobjects.Image{
+				SourceUri: &walletobjects.ImageUri{
+					Uri: "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+				},
+			},
+		},
+	}
+	transitObject.TextModulesData = []*walletobjects.TextModuleData{
+		&walletobjects.TextModuleData{
+			Body:   "Text module body",
+			Header: "Text module header",
+			Id:     "TEXT_MODULE_ID",
+		},
+	}
+	res, err := d.service.Transitobject.Insert(transitObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object insert response:\n%s\n", b)
+		fmt.Printf("Object insert id:\n%s\n", res.Id)
 	}
 }
 
@@ -209,16 +160,14 @@ func (d *demoTransit) createObject(issuerId, classSuffix, objectSuffix string) {
 // Sets the object's state to Expired. If the valid time interval is
 // already set, the pass will expire automatically up to 24 hours after.
 func (d *demoTransit) expireObject(issuerId, objectSuffix string) {
-	patchBody := `{"state": "EXPIRED"}`
-	url := fmt.Sprintf("%s/%s.%s", objectUrl, issuerId, objectSuffix)
-	req, _ := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer([]byte(patchBody)))
-	res, err := d.httpClient.Do(req)
-
+	transitObject := &walletobjects.TransitObject{
+		State: "EXPIRED",
+	}
+	res, err := d.service.Transitobject.Patch(fmt.Sprintf("%s.%s", issuerId, objectSuffix), transitObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to patch object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object expiration response:\n%s\n", b)
+		fmt.Printf("Object expiration id:\n%s\n", res.Id)
 	}
 }
 
@@ -232,127 +181,25 @@ func (d *demoTransit) expireObject(issuerId, objectSuffix string) {
 // created. This allows you to create multiple pass classes and objects in
 // one API call when the user saves the pass to their wallet.
 func (d *demoTransit) createJwtNewObjects(issuerId, classSuffix, objectSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"logo": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Logo description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://live.staticflickr.com/65535/48690277162_cd05f03f4d_o.png"
-			}
-		},
-		"issuerName": "Issuer name",
-		"reviewStatus": "UNDER_REVIEW",
-		"id": "%s.%s",
-		"transitType": "BUS"
+	transitObject := new(walletobjects.TransitObject)
+	transitObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	transitObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	transitObject.State = "ACTIVE"
+	transitObject.PassengerNames = "Passenger names"
+	transitObject.TripType = "ONE_WAY"
+	transitObject.PassengerType = "SINGLE_PASSENGER"
+	transitObject.TicketLeg = &walletobjects.TicketLeg{
+		DestinationStationCode: "SFO",
+		OriginStationCode:      "LA",
 	}
-	`, issuerId, classSuffix)
 
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"passengerNames": "Passenger names",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"ticketLeg": {
-			"destinationStationCode": "SFO",
-			"destinationName": {
-				"defaultValue": {
-					"value": "Destination name",
-					"language": "en-US"
-				}
-			},
-			"arrivalDateTime": "2020-04-12T20:20:50.52Z",
-			"originStationCode": "LA",
-			"originName": {
-				"defaultValue": {
-					"value": "Origin name",
-					"language": "en-US"
-				}
-			},
-			"departureDateTime": "2020-04-12T16:20:50.52Z",
-			"fareName": {
-				"defaultValue": {
-					"value": "Fare name",
-					"language": "en-US"
-				}
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"passengerType": "SINGLE_PASSENGER",
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"tripType": "ONE_WAY",
-		"id": "%s.%s"
-	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
-
-	var payload map[string]interface{}
+	transitJson, _ := json.Marshal(transitObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"genericClasses": [%s],
-		"genericObjects": [%s]
+		"transitObjects": [%s]
 	}
-	`, newClass, newObject)), &payload)
-
+	`, transitJson)), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
@@ -365,7 +212,7 @@ func (d *demoTransit) createJwtNewObjects(issuerId, classSuffix, objectSuffix st
 	key, _ := jwt.ParseRSAPrivateKeyFromPEM(d.credentials.PrivateKey)
 	token, _ := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(key)
 
-	fmt.Println("Add to Google Wallet link")
+	fmt.Println("Add to Google Wallet link for new objects")
 	fmt.Println("https://pay.google.com/gp/v/save/" + token)
 }
 
@@ -378,7 +225,7 @@ func (d *demoTransit) createJwtNewObjects(issuerId, classSuffix, objectSuffix st
 // their wallet, the pass objects defined in the JWT are added to the
 // user's Google Wallet app. This allows the user to save multiple pass
 // objects in one API call.
-func (d *demoTransit) createJwtExistingObjects(issuerId string) {
+func (d *demoTransit) createJwtExistingObjects(issuerId string, classSuffix string, objectSuffix string) {
 	var payload map[string]interface{}
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
@@ -444,98 +291,20 @@ func (d *demoTransit) batchCreateObjects(issuerId, classSuffix string) {
 	for i := 0; i < 3; i++ {
 		objectSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 
-		batchObject := fmt.Sprintf(`
-		{
-			"classId": "%s.%s",
-			"passengerNames": "Passenger names",
-			"heroImage": {
-				"contentDescription": {
-					"defaultValue": {
-						"value": "Hero image description",
-						"language": "en-US"
-					}
-				},
-				"sourceUri": {
-					"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-				}
-			},
-			"ticketLeg": {
-				"destinationStationCode": "SFO",
-				"destinationName": {
-					"defaultValue": {
-						"value": "Destination name",
-						"language": "en-US"
-					}
-				},
-				"arrivalDateTime": "2020-04-12T20:20:50.52Z",
-				"originStationCode": "LA",
-				"originName": {
-					"defaultValue": {
-						"value": "Origin name",
-						"language": "en-US"
-					}
-				},
-				"departureDateTime": "2020-04-12T16:20:50.52Z",
-				"fareName": {
-					"defaultValue": {
-						"value": "Fare name",
-						"language": "en-US"
-					}
-				}
-			},
-			"barcode": {
-				"type": "QR_CODE",
-				"value": "QR code"
-			},
-			"locations": [
-				{
-					"latitude": 37.424015499999996,
-					"longitude": -122.09259560000001
-				}
-			],
-			"passengerType": "SINGLE_PASSENGER",
-			"state": "ACTIVE",
-			"linksModuleData": {
-				"uris": [
-					{
-						"id": "LINK_MODULE_URI_ID",
-						"uri": "http://maps.google.com/",
-						"description": "Link module URI description"
-					},
-					{
-						"id": "LINK_MODULE_TEL_ID",
-						"uri": "tel:6505555555",
-						"description": "Link module tel description"
-					}
-				]
-			},
-			"imageModulesData": [
-				{
-					"id": "IMAGE_MODULE_ID",
-					"mainImage": {
-						"contentDescription": {
-							"defaultValue": {
-								"value": "Image module description",
-								"language": "en-US"
-							}
-						},
-						"sourceUri": {
-							"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-						}
-					}
-				}
-			],
-			"textModulesData": [
-				{
-					"body": "Text module body",
-					"header": "Text module header",
-					"id": "TEXT_MODULE_ID"
-				}
-			],
-			"tripType": "ONE_WAY",
-			"id": "%s.%s"
+		transitObject := new(walletobjects.TransitObject)
+		transitObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+		transitObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+		transitObject.State = "ACTIVE"
+		transitObject.PassengerNames = "Passenger names"
+		transitObject.TripType = "ONE_WAY"
+		transitObject.PassengerType = "SINGLE_PASSENGER"
+		transitObject.TicketLeg = &walletobjects.TicketLeg{
+			DestinationStationCode: "SFO",
+			OriginStationCode:      "LA",
 		}
-		`, issuerId, classSuffix, issuerId, objectSuffix)
+
+		transitJson, _ := json.Marshal(transitObject)
+		batchObject := fmt.Sprintf("%s", transitJson)
 
 		data += "--batch_createobjectbatch\n"
 		data += "Content-Type: application/json\n\n"
@@ -544,8 +313,7 @@ func (d *demoTransit) batchCreateObjects(issuerId, classSuffix string) {
 	}
 	data += "--batch_createobjectbatch--"
 
-	// batchUrl = 'https://walletobjects.googleapis.com/batch';
-	res, err := d.httpClient.Post(batchUrl, "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
+	res, err := d.credentials.Client(oauth2.NoContext).Post("https://walletobjects.googleapis.com/batch", "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
 
 	if err != nil {
 		fmt.Println(err)
@@ -558,11 +326,6 @@ func (d *demoTransit) batchCreateObjects(issuerId, classSuffix string) {
 // [END batch]
 
 func main() {
-	if len(os.Args) == 0 {
-		fmt.Println("Usage: go run demo_transit.go <issuer-id>")
-		os.Exit(1)
-	}
-
 	issuerId := os.Getenv("WALLET_ISSUER_ID")
 	classSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 	objectSuffix := fmt.Sprintf("%s-%s", strings.ReplaceAll(uuid.New().String(), "-", "_"), classSuffix)
@@ -574,6 +337,6 @@ func main() {
 	d.createObject(issuerId, classSuffix, objectSuffix)
 	d.expireObject(issuerId, objectSuffix)
 	d.createJwtNewObjects(issuerId, classSuffix, objectSuffix)
-	d.createJwtExistingObjects(issuerId)
+	d.createJwtExistingObjects(issuerId, classSuffix, objectSuffix)
 	d.batchCreateObjects(issuerId, classSuffix)
 }
