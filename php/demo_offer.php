@@ -17,20 +17,39 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-// Download the PHP client library from the following URL
-// https://developers.google.com/wallet/generic/resources/libraries
-require __DIR__ . '/lib/Walletobjects.php';
-
 // [START setup]
 // [START imports]
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
-use Google\Client as Google_Client;
+use Google\Client as GoogleClient;
+use Google\Service\Walletobjects;
+use Google\Service\Walletobjects\DateTime;
+use Google\Service\Walletobjects\TimeInterval;
+use Google\Service\Walletobjects\OfferObject;
+use Google\Service\Walletobjects\OfferClass;
+use Google\Service\Walletobjects\LatLongPoint;
+use Google\Service\Walletobjects\Barcode;
+use Google\Service\Walletobjects\ImageModuleData;
+use Google\Service\Walletobjects\LinksModuleData;
+use Google\Service\Walletobjects\TextModuleData;
+use Google\Service\Walletobjects\TranslatedString;
+use Google\Service\Walletobjects\LocalizedString;
+use Google\Service\Walletobjects\ImageUri;
+use Google\Service\Walletobjects\Image;
+use Google\Service\Walletobjects\Message;
+use Google\Service\Walletobjects\AddMessageRequest;
+use Google\Service\Walletobjects\Uri;
 // [END imports]
 
 /** Demo class for creating and managing Offers in Google Wallet. */
 class DemoOffer
 {
+  /**
+   * The Google API Client
+   * https://github.com/google/google-api-php-client
+   */
+  public GoogleClient $client;
+
   /**
    * Path to service account key file from Google Cloud Console. Environment
    * variable: GOOGLE_APPLICATION_CREDENTIALS.
@@ -45,7 +64,7 @@ class DemoOffer
   /**
    * Google Wallet service client.
    */
-  public Google_Service_Walletobjects $service;
+  public Walletobjects $service;
 
   public function __construct()
   {
@@ -61,20 +80,18 @@ class DemoOffer
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
-    $this->client = new Google_Client();
+    $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
-    $this->service = new Google_Service_Walletobjects($this->client);
+    $this->service = new Walletobjects($this->client);
   }
   // [END auth]
 
@@ -105,7 +122,7 @@ class DemoOffer
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/offers/rest/v1/offerclass
-    $newClass = new Google_Service_Walletobjects_OfferClass([
+    $newClass = new OfferClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW',
@@ -152,7 +169,7 @@ class DemoOffer
     }
 
     // Update the class by adding a homepage
-    $updatedClass->setHomepageUri(new Google_Service_Walletobjects_Uri([
+    $updatedClass->setHomepageUri(new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'Homepage description'
     ]));
@@ -198,8 +215,8 @@ class DemoOffer
     }
 
     // Patch the class by adding a homepage
-    $patchBody = new Google_Service_Walletobjects_OfferClass([
-      'homepageUri' => new Google_Service_Walletobjects_Uri([
+    $patchBody = new OfferClass([
+      'homepageUri' => new Uri([
         'uri' => 'https://developers.google.com/wallet',
         'description' => 'Homepage description'
       ]),
@@ -245,8 +262,8 @@ class DemoOffer
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -289,36 +306,36 @@ class DemoOffer
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-    $newObject = new Google_Service_Walletobjects_OfferObject([
+    $newObject = new OfferObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -326,13 +343,13 @@ class DemoOffer
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -341,21 +358,21 @@ class DemoOffer
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
       ],
-      'validTimeInterval' => new Google_Service_Walletobjects_TimeInterval([
-        'start' => new Google_Service_Walletobjects_DateTime([
+      'validTimeInterval' => new TimeInterval([
+        'start' => new DateTime([
           'date' => '2023-06-12T23:20:50.52Z'
         ]),
-        'end' => new Google_Service_Walletobjects_DateTime([
+        'end' => new DateTime([
           'date' => '2023-12-12T23:20:50.52Z'
         ])
       ])
@@ -398,7 +415,7 @@ class DemoOffer
     }
 
     // Update the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
@@ -406,7 +423,7 @@ class DemoOffer
     $linksModuleData = $updatedObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -454,17 +471,17 @@ class DemoOffer
     }
 
     // Patch the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
 
-    $patchBody = new Google_Service_Walletobjects_OfferObject();
+    $patchBody = new OfferObject();
 
     $linksModuleData = $existingObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -515,7 +532,7 @@ class DemoOffer
     }
 
     // Patch the object, setting the pass as expired
-    $patchBody = new Google_Service_Walletobjects_OfferObject([
+    $patchBody = new OfferObject([
       'state' => 'EXPIRED'
     ]);
 
@@ -555,8 +572,8 @@ class DemoOffer
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -590,7 +607,7 @@ class DemoOffer
   {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/offers/rest/v1/offerclass
-    $newClass = new Google_Service_Walletobjects_OfferClass([
+    $newClass = new OfferClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW',
@@ -601,36 +618,36 @@ class DemoOffer
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-    $newObject = new Google_Service_Walletobjects_OfferObject([
+    $newObject = new OfferObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -638,13 +655,13 @@ class DemoOffer
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -653,21 +670,21 @@ class DemoOffer
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
       ],
-      'validTimeInterval' => new Google_Service_Walletobjects_TimeInterval([
-        'start' => new Google_Service_Walletobjects_DateTime([
+      'validTimeInterval' => new TimeInterval([
+        'start' => new DateTime([
           'date' => '2023-06-12T23:20:50.52Z'
         ]),
-        'end' => new Google_Service_Walletobjects_DateTime([
+        'end' => new DateTime([
           'date' => '2023-12-12T23:20:50.52Z'
         ])
       ])
@@ -833,36 +850,36 @@ class DemoOffer
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/retail/offers/rest/v1/offerobject
-      $batchObject = new Google_Service_Walletobjects_OfferObject([
+      $batchObject = new OfferObject([
         'id' => "{$issuerId}.{$objectSuffix}",
         'classId' => "{$issuerId}.{$classSuffix}",
         'state' => 'ACTIVE',
-        'heroImage' => new Google_Service_Walletobjects_Image([
-          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        'heroImage' => new Image([
+          'sourceUri' => new ImageUri([
             'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
           ]),
-          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'contentDescription' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Hero image description'
             ])
           ])
         ]),
         'textModulesData' => [
-          new Google_Service_Walletobjects_TextModuleData([
+          new TextModuleData([
             'header' => 'Text module header',
             'body' => 'Text module body',
             'id' => 'TEXT_MODULE_ID'
           ])
         ],
-        'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'linksModuleData' => new LinksModuleData([
           'uris' => [
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'http://maps.google.com/',
               'description' => 'Link module URI description',
               'id' => 'LINK_MODULE_URI_ID'
             ]),
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'tel:6505555555',
               'description' => 'Link module tel description',
               'id' => 'LINK_MODULE_TEL_ID'
@@ -870,13 +887,13 @@ class DemoOffer
           ]
         ]),
         'imageModulesData' => [
-          new Google_Service_Walletobjects_ImageModuleData([
-            'mainImage' => new Google_Service_Walletobjects_Image([
-              'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          new ImageModuleData([
+            'mainImage' => new Image([
+              'sourceUri' => new ImageUri([
                 'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
               ]),
-              'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-                'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+              'contentDescription' => new LocalizedString([
+                'defaultValue' => new TranslatedString([
                   'language' => 'en-US',
                   'value' => 'Image module description'
                 ])
@@ -885,21 +902,21 @@ class DemoOffer
             'id' => 'IMAGE_MODULE_ID'
           ])
         ],
-        'barcode' => new Google_Service_Walletobjects_Barcode([
+        'barcode' => new Barcode([
           'type' => 'QR_CODE',
           'value' => 'QR code value'
         ]),
         'locations' => [
-          new Google_Service_Walletobjects_LatLongPoint([
+          new LatLongPoint([
             'latitude' => 37.424015499999996,
             'longitude' =>  -122.09259560000001
           ])
         ],
-        'validTimeInterval' => new Google_Service_Walletobjects_TimeInterval([
-          'start' => new Google_Service_Walletobjects_DateTime([
+        'validTimeInterval' => new TimeInterval([
+          'start' => new DateTime([
             'date' => '2023-06-12T23:20:50.52Z'
           ]),
-          'end' => new Google_Service_Walletobjects_DateTime([
+          'end' => new DateTime([
             'date' => '2023-12-12T23:20:50.52Z'
           ])
         ])

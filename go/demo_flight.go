@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
@@ -27,35 +28,34 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthJwt "golang.org/x/oauth2/jwt"
+	"google.golang.org/api/option"
+	"google.golang.org/api/walletobjects/v1"
 	"io"
-	"net/http"
+	"log"
 	"os"
 	"strings"
 )
 
 // [END imports]
-
-const (
-	batchUrl  = "https://walletobjects.googleapis.com/batch"
-	classUrl  = "https://walletobjects.googleapis.com/walletobjects/v1/flightClass"
-	objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/flightObject"
-)
-
 // [END setup]
 
 type demoFlight struct {
-	credentials                   *oauthJwt.Config
-	httpClient                    *http.Client
-	batchUrl, classUrl, objectUrl string
+	credentials *oauthJwt.Config
+	service     *walletobjects.Service
 }
 
 // [START auth]
 // Create authenticated HTTP client using a service account file.
 func (d *demoFlight) auth() {
-	b, _ := os.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	credentials, _ := google.JWTConfigFromJSON(b, "https://www.googleapis.com/auth/wallet_object.issuer")
+	credentialsFile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	b, _ := os.ReadFile(credentialsFile)
+	credentials, err := google.JWTConfigFromJSON(b, walletobjects.WalletObjectIssuerScope)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalf("Unable to load credentials: %v", err)
+	}
 	d.credentials = credentials
-	d.httpClient = d.credentials.Client(oauth2.NoContext)
+	d.service, _ = walletobjects.NewService(context.Background(), option.WithCredentialsFile(credentialsFile))
 }
 
 // [END auth]
@@ -63,38 +63,33 @@ func (d *demoFlight) auth() {
 // [START createClass]
 // Create a class.
 func (d *demoFlight) createClass(issuerId, classSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"origin": {
-			"terminal": "1",
-			"gate": "A2",
-			"airportIataCode": "LAX"
-		},
-		"flightHeader": {
-			"carrier": {
-				"carrierIataCode": "LX"
-			},
-			"flightNumber": "123"
-		},
-		"localScheduledDepartureDateTime": "2023-07-02T15:30:00",
-		"reviewStatus": "UNDER_REVIEW",
-		"issuerName": "Issuer name",
-		"destination": {
-			"terminal": "2",
-			"gate": "C3",
-			"airportIataCode": "SFO"
-		},
-		"id": "%s.%s"
+	flightClass := new(walletobjects.FlightClass)
+	flightClass.Id = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	flightClass.ReviewStatus = "UNDER_REVIEW"
+	flightClass.IssuerName = "Issuer name"
+	flightClass.Origin = &walletobjects.AirportInfo{
+		Terminal:        "1",
+		Gate:            "A2",
+		AirportIataCode: "LAX",
 	}
-	`, issuerId, classSuffix)
+	flightClass.Destination = &walletobjects.AirportInfo{
+		Terminal:        "2",
+		Gate:            "C3",
+		AirportIataCode: "SFO",
+	}
+	flightClass.FlightHeader = &walletobjects.FlightHeader{
+		Carrier: &walletobjects.FlightCarrier{
+			CarrierIataCode: "LX",
+		},
+		FlightNumber: "123",
+	}
+	flightClass.LocalScheduledDepartureDateTime = "2023-06-12T23:20:50"
 
-	res, err := d.httpClient.Post(classUrl, "application/json", bytes.NewBuffer([]byte(newClass)))
-
+	res, err := d.service.Flightclass.Insert(flightClass).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert class: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Class insert response:\n%s\n", b)
+		fmt.Printf("Class insert id:\n%v\n", res.Id)
 	}
 }
 
@@ -103,87 +98,70 @@ func (d *demoFlight) createClass(issuerId, classSuffix string) {
 // [START createObject]
 // Create an object.
 func (d *demoFlight) createObject(issuerId, classSuffix, objectSuffix string) {
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"passengerName": "Passenger name",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"boardingAndSeatingInfo": {
-			"boardingGroup": "B",
-			"seatNumber": "42"
-		},
-		"reservationInfo": {
-			"confirmationCode": "Confirmation code"
-		},
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"id": "%s.%s"
+	flightObject := new(walletobjects.FlightObject)
+	flightObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	flightObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	flightObject.State = "ACTIVE"
+	flightObject.PassengerName = "Passenger name"
+	flightObject.ReservationInfo = &walletobjects.ReservationInfo{
+		ConfirmationCode: "Confirmation code",
 	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
+	flightObject.BoardingAndSeatingInfo = &walletobjects.BoardingAndSeatingInfo{
+		BoardingGroup: "B",
+		SeatNumber:    "42",
+	}
+	flightObject.HeroImage = &walletobjects.Image{
+		SourceUri: &walletobjects.ImageUri{
+			Uri: "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+		},
+	}
+	flightObject.Barcode = &walletobjects.Barcode{
+		Type:  "QR_CODE",
+		Value: "QR code",
+	}
+	flightObject.Locations = []*walletobjects.LatLongPoint{
+		&walletobjects.LatLongPoint{
+			Latitude:  37.424015499999996,
+			Longitude: -122.09259560000001,
+		},
+	}
+	flightObject.LinksModuleData = &walletobjects.LinksModuleData{
+		Uris: []*walletobjects.Uri{
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_URI_ID",
+				Uri:         "http://maps.google.com/",
+				Description: "Link module URI description",
+			},
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_TEL_ID",
+				Uri:         "tel:6505555555",
+				Description: "Link module tel description",
+			},
+		},
+	}
+	flightObject.ImageModulesData = []*walletobjects.ImageModuleData{
+		&walletobjects.ImageModuleData{
+			Id: "IMAGE_MODULE_ID",
+			MainImage: &walletobjects.Image{
+				SourceUri: &walletobjects.ImageUri{
+					Uri: "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+				},
+			},
+		},
+	}
+	flightObject.TextModulesData = []*walletobjects.TextModuleData{
+		&walletobjects.TextModuleData{
+			Body:   "Text module body",
+			Header: "Text module header",
+			Id:     "TEXT_MODULE_ID",
+		},
+	}
 
-	res, err := d.httpClient.Post(objectUrl, "application/json", bytes.NewBuffer([]byte(newObject)))
-
+	res, err := d.service.Flightobject.Insert(flightObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object insert response:\n%s\n", b)
+		fmt.Printf("Object insert id:\n%s\n", res.Id)
 	}
 }
 
@@ -195,16 +173,14 @@ func (d *demoFlight) createObject(issuerId, classSuffix, objectSuffix string) {
 // Sets the object's state to Expired. If the valid time interval is
 // already set, the pass will expire automatically up to 24 hours after.
 func (d *demoFlight) expireObject(issuerId, objectSuffix string) {
-	patchBody := `{"state": "EXPIRED"}`
-	url := fmt.Sprintf("%s/%s.%s", objectUrl, issuerId, objectSuffix)
-	req, _ := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer([]byte(patchBody)))
-	res, err := d.httpClient.Do(req)
-
+	flightObject := &walletobjects.FlightObject{
+		State: "EXPIRED",
+	}
+	res, err := d.service.Flightobject.Patch(fmt.Sprintf("%s.%s", issuerId, objectSuffix), flightObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to patch object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object expiration response:\n%s\n", b)
+		fmt.Printf("Object expiration id:\n%s\n", res.Id)
 	}
 }
 
@@ -218,113 +194,22 @@ func (d *demoFlight) expireObject(issuerId, objectSuffix string) {
 // created. This allows you to create multiple pass classes and objects in
 // one API call when the user saves the pass to their wallet.
 func (d *demoFlight) createJwtNewObjects(issuerId, classSuffix, objectSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"origin": {
-			"terminal": "1",
-			"gate": "A2",
-			"airportIataCode": "LAX"
-		},
-		"flightHeader": {
-			"carrier": {
-				"carrierIataCode": "LX"
-			},
-			"flightNumber": "123"
-		},
-		"localScheduledDepartureDateTime": "2023-07-02T15:30:00",
-		"reviewStatus": "UNDER_REVIEW",
-		"issuerName": "Issuer name",
-		"destination": {
-			"terminal": "2",
-			"gate": "C3",
-			"airportIataCode": "SFO"
-		},
-		"id": "%s.%s"
+	flightObject := new(walletobjects.FlightObject)
+	flightObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	flightObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	flightObject.State = "ACTIVE"
+	flightObject.PassengerName = "Passenger name"
+	flightObject.ReservationInfo = &walletobjects.ReservationInfo{
+		ConfirmationCode: "Confirmation code",
 	}
-	`, issuerId, classSuffix)
 
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"passengerName": "Passenger name",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"boardingAndSeatingInfo": {
-			"boardingGroup": "B",
-			"seatNumber": "42"
-		},
-		"reservationInfo": {
-			"confirmationCode": "Confirmation code"
-		},
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"id": "%s.%s"
-	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
-
-	var payload map[string]interface{}
+	flightJson, _ := json.Marshal(flightObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"genericClasses": [%s],
-		"genericObjects": [%s]
+		"flightObjects": [%s]
 	}
-	`, newClass, newObject)), &payload)
-
+	`, flightJson)), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
@@ -350,7 +235,7 @@ func (d *demoFlight) createJwtNewObjects(issuerId, classSuffix, objectSuffix str
 // their wallet, the pass objects defined in the JWT are added to the
 // user's Google Wallet app. This allows the user to save multiple pass
 // objects in one API call.
-func (d *demoFlight) createJwtExistingObjects(issuerId string) {
+func (d *demoFlight) createJwtExistingObjects(issuerId string, classSuffix string, objectSuffix string) {
 	var payload map[string]interface{}
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
@@ -379,7 +264,7 @@ func (d *demoFlight) createJwtExistingObjects(issuerId string) {
 			"classId": "%s.LOYALTY_CLASS_SUFFIX"
 		}],
 
-		"offerObjects": [{
+		"flightObjects": [{
 			"id": "%s.OFFER_OBJECT_SUFFIX",
 			"classId": "%s.OFFER_CLASS_SUFFIX"
 		}],
@@ -416,79 +301,17 @@ func (d *demoFlight) batchCreateObjects(issuerId, classSuffix string) {
 	for i := 0; i < 3; i++ {
 		objectSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 
-		batchObject := fmt.Sprintf(`
-		{
-			"classId": "%s.%s",
-			"passengerName": "Passenger name",
-			"heroImage": {
-				"contentDescription": {
-					"defaultValue": {
-						"value": "Hero image description",
-						"language": "en-US"
-					}
-				},
-				"sourceUri": {
-					"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-				}
-			},
-			"barcode": {
-				"type": "QR_CODE",
-				"value": "QR code"
-			},
-			"locations": [
-				{
-					"latitude": 37.424015499999996,
-					"longitude": -122.09259560000001
-				}
-			],
-			"boardingAndSeatingInfo": {
-				"boardingGroup": "B",
-				"seatNumber": "42"
-			},
-			"reservationInfo": {
-				"confirmationCode": "Confirmation code"
-			},
-			"state": "ACTIVE",
-			"linksModuleData": {
-				"uris": [
-					{
-						"id": "LINK_MODULE_URI_ID",
-						"uri": "http://maps.google.com/",
-						"description": "Link module URI description"
-					},
-					{
-						"id": "LINK_MODULE_TEL_ID",
-						"uri": "tel:6505555555",
-						"description": "Link module tel description"
-					}
-				]
-			},
-			"imageModulesData": [
-				{
-					"id": "IMAGE_MODULE_ID",
-					"mainImage": {
-						"contentDescription": {
-							"defaultValue": {
-								"value": "Image module description",
-								"language": "en-US"
-							}
-						},
-						"sourceUri": {
-							"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-						}
-					}
-				}
-			],
-			"textModulesData": [
-				{
-					"body": "Text module body",
-					"header": "Text module header",
-					"id": "TEXT_MODULE_ID"
-				}
-			],
-			"id": "%s.%s"
+		flightObject := new(walletobjects.FlightObject)
+		flightObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+		flightObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+		flightObject.State = "ACTIVE"
+		flightObject.PassengerName = "Passenger name"
+		flightObject.ReservationInfo = &walletobjects.ReservationInfo{
+			ConfirmationCode: "Confirmation code",
 		}
-		`, issuerId, classSuffix, issuerId, objectSuffix)
+
+		flightJson, _ := json.Marshal(flightObject)
+		batchObject := fmt.Sprintf("%s", flightJson)
 
 		data += "--batch_createobjectbatch\n"
 		data += "Content-Type: application/json\n\n"
@@ -497,8 +320,7 @@ func (d *demoFlight) batchCreateObjects(issuerId, classSuffix string) {
 	}
 	data += "--batch_createobjectbatch--"
 
-	// batchUrl = 'https://walletobjects.googleapis.com/batch';
-	res, err := d.httpClient.Post(batchUrl, "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
+	res, err := d.credentials.Client(oauth2.NoContext).Post("https://walletobjects.googleapis.com/batch", "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
 
 	if err != nil {
 		fmt.Println(err)
@@ -511,11 +333,6 @@ func (d *demoFlight) batchCreateObjects(issuerId, classSuffix string) {
 // [END batch]
 
 func main() {
-	if len(os.Args) == 0 {
-		fmt.Println("Usage: go run demo_flight.go <issuer-id>")
-		os.Exit(1)
-	}
-
 	issuerId := os.Getenv("WALLET_ISSUER_ID")
 	classSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 	objectSuffix := fmt.Sprintf("%s-%s", strings.ReplaceAll(uuid.New().String(), "-", "_"), classSuffix)
@@ -527,6 +344,6 @@ func main() {
 	d.createObject(issuerId, classSuffix, objectSuffix)
 	d.expireObject(issuerId, objectSuffix)
 	d.createJwtNewObjects(issuerId, classSuffix, objectSuffix)
-	d.createJwtExistingObjects(issuerId)
+	d.createJwtExistingObjects(issuerId, classSuffix, objectSuffix)
 	d.batchCreateObjects(issuerId, classSuffix)
 }

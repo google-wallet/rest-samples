@@ -16,7 +16,7 @@
 
 // [START setup]
 // [START imports]
-const { GoogleAuth } = require('google-auth-library');
+const { google } = require('googleapis');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 // [END imports]
@@ -31,12 +31,6 @@ class DemoLoyalty {
      * variable: GOOGLE_APPLICATION_CREDENTIALS.
      */
     this.keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '/path/to/key.json';
-
-    this.baseUrl = 'https://walletobjects.googleapis.com/walletobjects/v1';
-    this.batchUrl = 'https://walletobjects.googleapis.com/batch';
-    this.classUrl = `${this.baseUrl}/loyaltyClass`;
-    this.objectUrl = `${this.baseUrl}/loyaltyObject`;
-
     this.auth();
   }
   // [END setup]
@@ -46,11 +40,16 @@ class DemoLoyalty {
    * Create authenticated HTTP client using a service account file.
    */
   auth() {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: this.keyFilePath,
+      scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
+    });
+
     this.credentials = require(this.keyFilePath);
 
-    this.httpClient = new GoogleAuth({
-      credentials: this.credentials,
-      scopes: 'https://www.googleapis.com/auth/wallet_object.issuer'
+    this.client = google.walletobjects({
+      version: 'v1',
+      auth: auth,
     });
   }
   // [END auth]
@@ -69,9 +68,8 @@ class DemoLoyalty {
 
     // Check if the class exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyclass.get({
+        resourceId: `${issuerId}.${classSuffix}`
       });
 
       console.log(`Class ${issuerId}.${classSuffix} already exists!`);
@@ -105,10 +103,8 @@ class DemoLoyalty {
       }
     };
 
-    response = await this.httpClient.request({
-      url: this.classUrl,
-      method: 'POST',
-      data: newClass
+    response = await this.client.loyaltyclass.insert({
+      requestBody: newClass
     });
 
     console.log('Class insert response');
@@ -134,9 +130,8 @@ class DemoLoyalty {
 
     // Check if the class exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyclass.get({
+        resourceId: `${issuerId}.${classSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -161,10 +156,9 @@ class DemoLoyalty {
     // Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
     updatedClass['reviewStatus'] = 'UNDER_REVIEW';
 
-    response = await this.httpClient.request({
-      url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-      method: 'PUT',
-      data: updatedClass
+    response = await this.client.loyaltyclass.update({
+      resourceId: `${issuerId}.${classSuffix}`,
+      requestBody: updatedClass
     });
 
     console.log('Class update response');
@@ -190,9 +184,8 @@ class DemoLoyalty {
 
     // Check if the class exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyclass.get({
+        resourceId: `${issuerId}.${classSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -216,10 +209,9 @@ class DemoLoyalty {
       'reviewStatus': 'UNDER_REVIEW'
     };
 
-    response = await this.httpClient.request({
-      url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-      method: 'PATCH',
-      data: patchBody
+    response = await this.client.loyaltyclass.patch({
+      resourceId: `${issuerId}.${classSuffix}`,
+      requestBody: patchBody
     });
 
     console.log('Class patch response');
@@ -245,9 +237,8 @@ class DemoLoyalty {
 
     // Check if the class exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.classUrl}/${issuerId}.${classSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyclass.get({
+        resourceId: `${issuerId}.${classSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -260,10 +251,9 @@ class DemoLoyalty {
       }
     }
 
-    response = await this.httpClient.request({
-      url: `${this.classUrl}/${issuerId}.${classSuffix}/addMessage`,
-      method: 'POST',
-      data: {
+    response = await this.client.loyaltyclass.addmessage({
+      resourceId: `${issuerId}.${classSuffix}`,
+      requestBody: {
         'message': {
           'header': header,
           'body': body
@@ -293,9 +283,8 @@ class DemoLoyalty {
 
     // Check if the object exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyobject.get({
+        resourceId: `${issuerId}.${objectSuffix}`
       });
 
       console.log(`Object ${issuerId}.${objectSuffix} already exists!`);
@@ -383,10 +372,8 @@ class DemoLoyalty {
       }
     };
 
-    response = await this.httpClient.request({
-      url: this.objectUrl,
-      method: 'POST',
-      data: newObject
+    response = await this.client.loyaltyobject.insert({
+      requestBody: newObject
     });
 
     console.log('Object insert response');
@@ -412,9 +399,8 @@ class DemoLoyalty {
 
     // Check if the object exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyobject.get({
+        resourceId: `${issuerId}.${objectSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -443,10 +429,9 @@ class DemoLoyalty {
       updatedObject['linksModuleData']['uris'].push(newLink);
     }
 
-    response = await this.httpClient.request({
-      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-      method: 'PUT',
-      data: updatedObject
+    response = await this.client.loyaltyobject.update({
+      resourceId: `${issuerId}.${objectSuffix}`,
+      requestBody: updatedObject
     });
 
     console.log('Object update response');
@@ -470,9 +455,8 @@ class DemoLoyalty {
 
     // Check if the object exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyobject.get({
+        resourceId: `${issuerId}.${objectSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -506,10 +490,9 @@ class DemoLoyalty {
     }
     patchBody['linksModuleData']['uris'].push(newLink);
 
-    response = await this.httpClient.request({
-      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-      method: 'PATCH',
-      data: patchBody
+    response = await this.client.loyaltyobject.patch({
+      resourceId: `${issuerId}.${objectSuffix}`,
+      requestBody: patchBody
     });
 
     console.log('Object patch response');
@@ -536,9 +519,8 @@ class DemoLoyalty {
 
     // Check if the object exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyobject.get({
+        resourceId: `${issuerId}.${objectSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -556,10 +538,9 @@ class DemoLoyalty {
       'state': 'EXPIRED'
     };
 
-    response = await this.httpClient.request({
-      url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-      method: 'PATCH',
-      data: patchBody
+    response = await this.client.loyaltyobject.patch({
+      resourceId: `${issuerId}.${objectSuffix}`,
+      requestBody: patchBody
     });
 
     console.log('Object expiration response');
@@ -585,9 +566,8 @@ class DemoLoyalty {
 
     // Check if the object exists
     try {
-      response = await this.httpClient.request({
-        url: `${this.objectUrl}/${issuerId}.${objectSuffix}`,
-        method: 'GET'
+      response = await this.client.loyaltyobject.get({
+        resourceId: `${issuerId}.${objectSuffix}`
       });
     } catch (err) {
       if (err.response && err.response.status === 404) {
@@ -600,10 +580,9 @@ class DemoLoyalty {
       }
     }
 
-    response = await this.httpClient.request({
-      url: `${this.objectUrl}/${issuerId}.${objectSuffix}/addMessage`,
-      method: 'POST',
-      data: {
+    response = await this.client.loyaltyobject.addmessage({
+      resourceId: `${issuerId}.${classSuffix}`,
+      requestBody: {
         'message': {
           'header': header,
           'body': body
@@ -940,8 +919,8 @@ class DemoLoyalty {
     data += '--batch_createobjectbatch--';
 
     // Invoke the batch API calls
-    let response = await this.httpClient.request({
-      url: this.batchUrl, // https://walletobjects.googleapis.com/batch
+    let response = await this.client.context._options.auth.request({
+      url: 'https://walletobjects.googleapis.com/batch',
       method: 'POST',
       data: data,
       headers: {

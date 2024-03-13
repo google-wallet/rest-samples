@@ -69,7 +69,7 @@ class DemoEventTicket
         .FromFile(keyFilePath)
         .CreateScoped(new List<string>
         {
-          "https://www.googleapis.com/auth/wallet_object.issuer"
+          WalletobjectsService.ScopeConstants.WalletObjectIssuer
         })
         .UnderlyingCredential;
 

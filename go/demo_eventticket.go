@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
@@ -27,35 +28,34 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthJwt "golang.org/x/oauth2/jwt"
+	"google.golang.org/api/option"
+	"google.golang.org/api/walletobjects/v1"
 	"io"
-	"net/http"
+	"log"
 	"os"
 	"strings"
 )
 
 // [END imports]
-
-const (
-	batchUrl  = "https://walletobjects.googleapis.com/batch"
-	classUrl  = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketClass"
-	objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/eventTicketObject"
-)
-
 // [END setup]
 
 type demoEventticket struct {
-	credentials                   *oauthJwt.Config
-	httpClient                    *http.Client
-	batchUrl, classUrl, objectUrl string
+	credentials *oauthJwt.Config
+	service     *walletobjects.Service
 }
 
 // [START auth]
 // Create authenticated HTTP client using a service account file.
 func (d *demoEventticket) auth() {
-	b, _ := os.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	credentials, _ := google.JWTConfigFromJSON(b, "https://www.googleapis.com/auth/wallet_object.issuer")
+	credentialsFile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	b, _ := os.ReadFile(credentialsFile)
+	credentials, err := google.JWTConfigFromJSON(b, walletobjects.WalletObjectIssuerScope)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalf("Unable to load credentials: %v", err)
+	}
 	d.credentials = credentials
-	d.httpClient = d.credentials.Client(oauth2.NoContext)
+	d.service, _ = walletobjects.NewService(context.Background(), option.WithCredentialsFile(credentialsFile))
 }
 
 // [END auth]
@@ -63,28 +63,21 @@ func (d *demoEventticket) auth() {
 // [START createClass]
 // Create a class.
 func (d *demoEventticket) createClass(issuerId, classSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"eventId": "EVENT_ID",
-		"eventName": {
-			"defaultValue": {
-				"value": "Event name",
-				"language": "en-US"
-			}
+	eventticketClass := new(walletobjects.EventTicketClass)
+	eventticketClass.Id = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	eventticketClass.EventName = &walletobjects.LocalizedString{
+		DefaultValue: &walletobjects.TranslatedString{
+			Language: "en-us",
+			Value:    "Event name",
 		},
-		"issuerName": "Issuer name",
-		"id": "%s.%s",
-		"reviewStatus": "UNDER_REVIEW"
 	}
-	`, issuerId, classSuffix)
-
-	res, err := d.httpClient.Post(classUrl, "application/json", bytes.NewBuffer([]byte(newClass)))
-
+	eventticketClass.IssuerName = "Issuer name"
+	eventticketClass.ReviewStatus = "UNDER_REVIEW"
+	res, err := d.service.Eventticketclass.Insert(eventticketClass).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert class: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Class insert response:\n%s\n", b)
+		fmt.Printf("Class insert id:\n%v\n", res.Id)
 	}
 }
 
@@ -93,107 +86,90 @@ func (d *demoEventticket) createClass(issuerId, classSuffix string) {
 // [START createObject]
 // Create an object.
 func (d *demoEventticket) createObject(issuerId, classSuffix, objectSuffix string) {
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"ticketHolderName": "Ticket holder name",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
+	eventticketObject := new(walletobjects.EventTicketObject)
+	eventticketObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	eventticketObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	eventticketObject.TicketHolderName = "Ticket holder name"
+	eventticketObject.TicketNumber = "Ticket number"
+	eventticketObject.State = "ACTIVE"
+	eventticketObject.HeroImage = &walletobjects.Image{
+		SourceUri: &walletobjects.ImageUri{
+			Uri: "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
 		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"ticketNumber": "Ticket number",
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"seatInfo": {
-			"gate": {
-				"defaultValue": {
-					"value": "A",
-					"language": "en-US"
-				}
-			},
-			"section": {
-				"defaultValue": {
-					"value": "5",
-					"language": "en-US"
-				}
-			},
-			"row": {
-				"defaultValue": {
-					"value": "G3",
-					"language": "en-US"
-				}
-			},
-			"seat": {
-				"defaultValue": {
-					"value": "42",
-					"language": "en-US"
-				}
-			}
-		},
-		"id": "%s.%s"
 	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
+	eventticketObject.Barcode = &walletobjects.Barcode{
+		Type:  "QR_CODE",
+		Value: "QR code",
+	}
+	eventticketObject.Locations = []*walletobjects.LatLongPoint{
+		&walletobjects.LatLongPoint{
+			Latitude:  37.424015499999996,
+			Longitude: -122.09259560000001,
+		},
+	}
+	eventticketObject.LinksModuleData = &walletobjects.LinksModuleData{
+		Uris: []*walletobjects.Uri{
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_URI_ID",
+				Uri:         "http://maps.google.com/",
+				Description: "Link module URI description",
+			},
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_TEL_ID",
+				Uri:         "tel:6505555555",
+				Description: "Link module tel description",
+			},
+		},
+	}
+	eventticketObject.ImageModulesData = []*walletobjects.ImageModuleData{
+		&walletobjects.ImageModuleData{
+			Id: "IMAGE_MODULE_ID",
+			MainImage: &walletobjects.Image{
+				SourceUri: &walletobjects.ImageUri{
+					Uri: "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+				},
+			},
+		},
+	}
+	eventticketObject.TextModulesData = []*walletobjects.TextModuleData{
+		&walletobjects.TextModuleData{
+			Body:   "Text module body",
+			Header: "Text module header",
+			Id:     "TEXT_MODULE_ID",
+		},
+	}
+	eventticketObject.SeatInfo = &walletobjects.EventSeat{
+		Gate: &walletobjects.LocalizedString{
+			DefaultValue: &walletobjects.TranslatedString{
+				Language: "en-us",
+				Value:    "A",
+			},
+		},
+		Section: &walletobjects.LocalizedString{
+			DefaultValue: &walletobjects.TranslatedString{
+				Language: "en-us",
+				Value:    "5",
+			},
+		},
+		Row: &walletobjects.LocalizedString{
+			DefaultValue: &walletobjects.TranslatedString{
+				Language: "en-us",
+				Value:    "G3",
+			},
+		},
+		Seat: &walletobjects.LocalizedString{
+			DefaultValue: &walletobjects.TranslatedString{
+				Language: "en-us",
+				Value:    "42",
+			},
+		},
+	}
 
-	res, err := d.httpClient.Post(objectUrl, "application/json", bytes.NewBuffer([]byte(newObject)))
-
+	res, err := d.service.Eventticketobject.Insert(eventticketObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object insert response:\n%s\n", b)
+		fmt.Printf("Object insert id:\n%s\n", res.Id)
 	}
 }
 
@@ -205,16 +181,14 @@ func (d *demoEventticket) createObject(issuerId, classSuffix, objectSuffix strin
 // Sets the object's state to Expired. If the valid time interval is
 // already set, the pass will expire automatically up to 24 hours after.
 func (d *demoEventticket) expireObject(issuerId, objectSuffix string) {
-	patchBody := `{"state": "EXPIRED"}`
-	url := fmt.Sprintf("%s/%s.%s", objectUrl, issuerId, objectSuffix)
-	req, _ := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer([]byte(patchBody)))
-	res, err := d.httpClient.Do(req)
-
+	eventticketObject := &walletobjects.EventTicketObject{
+		State: "EXPIRED",
+	}
+	res, err := d.service.Eventticketobject.Patch(fmt.Sprintf("%s.%s", issuerId, objectSuffix), eventticketObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to patch object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object expiration response:\n%s\n", b)
+		fmt.Printf("Object expiration id:\n%s\n", res.Id)
 	}
 }
 
@@ -228,123 +202,20 @@ func (d *demoEventticket) expireObject(issuerId, objectSuffix string) {
 // created. This allows you to create multiple pass classes and objects in
 // one API call when the user saves the pass to their wallet.
 func (d *demoEventticket) createJwtNewObjects(issuerId, classSuffix, objectSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"eventId": "EVENT_ID",
-		"eventName": {
-			"defaultValue": {
-				"value": "Event name",
-				"language": "en-US"
-			}
-		},
-		"issuerName": "Issuer name",
-		"id": "%s.%s",
-		"reviewStatus": "UNDER_REVIEW"
-	}
-	`, issuerId, classSuffix)
+	eventticketObject := new(walletobjects.EventTicketObject)
+	eventticketObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	eventticketObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	eventticketObject.TicketHolderName = "Ticket holder name"
+	eventticketObject.TicketNumber = "Ticket number"
+	eventticketObject.State = "ACTIVE"
 
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"ticketHolderName": "Ticket holder name",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"state": "ACTIVE",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"ticketNumber": "Ticket number",
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"seatInfo": {
-			"gate": {
-				"defaultValue": {
-					"value": "A",
-					"language": "en-US"
-				}
-			},
-			"section": {
-				"defaultValue": {
-					"value": "5",
-					"language": "en-US"
-				}
-			},
-			"row": {
-				"defaultValue": {
-					"value": "G3",
-					"language": "en-US"
-				}
-			},
-			"seat": {
-				"defaultValue": {
-					"value": "42",
-					"language": "en-US"
-				}
-			}
-		},
-		"id": "%s.%s"
-	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
-
-	var payload map[string]interface{}
+	eventticketJson, _ := json.Marshal(eventticketObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"genericClasses": [%s],
-		"genericObjects": [%s]
+		"eventticketObjects": [%s]
 	}
-	`, newClass, newObject)), &payload)
-
+	`, eventticketJson)), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
@@ -370,7 +241,7 @@ func (d *demoEventticket) createJwtNewObjects(issuerId, classSuffix, objectSuffi
 // their wallet, the pass objects defined in the JWT are added to the
 // user's Google Wallet app. This allows the user to save multiple pass
 // objects in one API call.
-func (d *demoEventticket) createJwtExistingObjects(issuerId string) {
+func (d *demoEventticket) createJwtExistingObjects(issuerId string, classSuffix string, objectSuffix string) {
 	var payload map[string]interface{}
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
@@ -394,7 +265,7 @@ func (d *demoEventticket) createJwtExistingObjects(issuerId string) {
 			"classId": "%s.GIFT_CARD_CLASS_SUFFIX"
 		}],
 
-		"loyaltyObjects": [{
+		"eventticketObjects": [{
 			"id": "%s.LOYALTY_OBJECT_SUFFIX",
 			"classId": "%s.LOYALTY_CLASS_SUFFIX"
 		}],
@@ -436,99 +307,15 @@ func (d *demoEventticket) batchCreateObjects(issuerId, classSuffix string) {
 	for i := 0; i < 3; i++ {
 		objectSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 
-		batchObject := fmt.Sprintf(`
-		{
-			"classId": "%s.%s",
-			"ticketHolderName": "Ticket holder name",
-			"heroImage": {
-				"contentDescription": {
-					"defaultValue": {
-						"value": "Hero image description",
-						"language": "en-US"
-					}
-				},
-				"sourceUri": {
-					"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-				}
-			},
-			"barcode": {
-				"type": "QR_CODE",
-				"value": "QR code"
-			},
-			"locations": [
-				{
-					"latitude": 37.424015499999996,
-					"longitude": -122.09259560000001
-				}
-			],
-			"state": "ACTIVE",
-			"linksModuleData": {
-				"uris": [
-					{
-						"id": "LINK_MODULE_URI_ID",
-						"uri": "http://maps.google.com/",
-						"description": "Link module URI description"
-					},
-					{
-						"id": "LINK_MODULE_TEL_ID",
-						"uri": "tel:6505555555",
-						"description": "Link module tel description"
-					}
-				]
-			},
-			"ticketNumber": "Ticket number",
-			"imageModulesData": [
-				{
-					"id": "IMAGE_MODULE_ID",
-					"mainImage": {
-						"contentDescription": {
-							"defaultValue": {
-								"value": "Image module description",
-								"language": "en-US"
-							}
-						},
-						"sourceUri": {
-							"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-						}
-					}
-				}
-			],
-			"textModulesData": [
-				{
-					"body": "Text module body",
-					"header": "Text module header",
-					"id": "TEXT_MODULE_ID"
-				}
-			],
-			"seatInfo": {
-				"gate": {
-					"defaultValue": {
-						"value": "A",
-						"language": "en-US"
-					}
-				},
-				"section": {
-					"defaultValue": {
-						"value": "5",
-						"language": "en-US"
-					}
-				},
-				"row": {
-					"defaultValue": {
-						"value": "G3",
-						"language": "en-US"
-					}
-				},
-				"seat": {
-					"defaultValue": {
-						"value": "42",
-						"language": "en-US"
-					}
-				}
-			},
-			"id": "%s.%s"
-		}
-		`, issuerId, classSuffix, issuerId, objectSuffix)
+		eventticketObject := new(walletobjects.EventTicketObject)
+		eventticketObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+		eventticketObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+		eventticketObject.TicketHolderName = "Ticket holder name"
+		eventticketObject.TicketNumber = "Ticket number"
+		eventticketObject.State = "ACTIVE"
+
+		eventticketJson, _ := json.Marshal(eventticketObject)
+		batchObject := fmt.Sprintf("%s", eventticketJson)
 
 		data += "--batch_createobjectbatch\n"
 		data += "Content-Type: application/json\n\n"
@@ -537,9 +324,7 @@ func (d *demoEventticket) batchCreateObjects(issuerId, classSuffix string) {
 	}
 	data += "--batch_createobjectbatch--"
 
-
-	// batchUrl = 'https://walletobjects.googleapis.com/batch';
-	res, err := d.httpClient.Post(batchUrl, "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
+	res, err := d.credentials.Client(oauth2.NoContext).Post("https://walletobjects.googleapis.com/batch", "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
 
 	if err != nil {
 		fmt.Println(err)
@@ -552,11 +337,6 @@ func (d *demoEventticket) batchCreateObjects(issuerId, classSuffix string) {
 // [END batch]
 
 func main() {
-	if len(os.Args) == 0 {
-		fmt.Println("Usage: go run demo_eventticket.go <issuer-id>")
-		os.Exit(1)
-	}
-
 	issuerId := os.Getenv("WALLET_ISSUER_ID")
 	classSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 	objectSuffix := fmt.Sprintf("%s-%s", strings.ReplaceAll(uuid.New().String(), "-", "_"), classSuffix)
@@ -568,6 +348,6 @@ func main() {
 	d.createObject(issuerId, classSuffix, objectSuffix)
 	d.expireObject(issuerId, objectSuffix)
 	d.createJwtNewObjects(issuerId, classSuffix, objectSuffix)
-	d.createJwtExistingObjects(issuerId)
+	d.createJwtExistingObjects(issuerId, classSuffix, objectSuffix)
 	d.batchCreateObjects(issuerId, classSuffix)
 }

@@ -17,20 +17,34 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-// Download the PHP client library from the following URL
-// https://developers.google.com/wallet/generic/resources/libraries
-require __DIR__ . '/lib/Walletobjects.php';
-
 // [START setup]
 // [START imports]
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
-use Google\Client as Google_Client;
+use Google\Client as GoogleClient;
+use Google\Service\Walletobjects;
+use Google\Service\Walletobjects\GenericObject;
+use Google\Service\Walletobjects\GenericClass;
+use Google\Service\Walletobjects\Barcode;
+use Google\Service\Walletobjects\ImageModuleData;
+use Google\Service\Walletobjects\LinksModuleData;
+use Google\Service\Walletobjects\TextModuleData;
+use Google\Service\Walletobjects\TranslatedString;
+use Google\Service\Walletobjects\LocalizedString;
+use Google\Service\Walletobjects\ImageUri;
+use Google\Service\Walletobjects\Image;
+use Google\Service\Walletobjects\Uri;
 // [END imports]
 
 /** Demo class for creating and managing Generic passes in Google Wallet. */
 class DemoGeneric
 {
+  /**
+   * The Google API Client
+   * https://github.com/google/google-api-php-client
+   */
+  public GoogleClient $client;
+
   /**
    * Path to service account key file from Google Cloud Console. Environment
    * variable: GOOGLE_APPLICATION_CREDENTIALS.
@@ -45,7 +59,7 @@ class DemoGeneric
   /**
    * Google Wallet service client.
    */
-  public Google_Service_Walletobjects $service;
+  public Walletobjects $service;
 
   public function __construct()
   {
@@ -61,20 +75,18 @@ class DemoGeneric
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
-    $this->client = new Google_Client();
+    $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
-    $this->service = new Google_Service_Walletobjects($this->client);
+    $this->service = new Walletobjects($this->client);
   }
   // [END auth]
 
@@ -105,7 +117,7 @@ class DemoGeneric
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/generic/rest/v1/genericclass
-    $newClass = new Google_Service_Walletobjects_GenericClass([
+    $newClass = new GenericClass([
       'id' => "{$issuerId}.{$classSuffix}"
     ]);
 
@@ -147,7 +159,7 @@ class DemoGeneric
     }
 
     // Update the class by adding a homepage
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'Homepage description'
     ]);
@@ -155,7 +167,7 @@ class DemoGeneric
     $linksModuleData = $updatedClass->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -206,17 +218,17 @@ class DemoGeneric
     }
 
     // Patch the class by adding a homepage
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'Homepage description'
     ]);
 
-    $patchBody = new Google_Service_Walletobjects_GenericClass();
+    $patchBody = new GenericClass();
 
     $linksModuleData = $existingClass->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -266,36 +278,36 @@ class DemoGeneric
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/generic/rest/v1/genericobject
-    $newObject = new Google_Service_Walletobjects_GenericObject([
+    $newObject = new GenericObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -303,13 +315,13 @@ class DemoGeneric
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -318,29 +330,29 @@ class DemoGeneric
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
-      'cardTitle' => new Google_Service_Walletobjects_LocalizedString([
-        'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+      'cardTitle' => new LocalizedString([
+        'defaultValue' => new TranslatedString([
           'language' => 'en-US',
           'value' => 'Generic card title'
         ])
       ]),
-      'header' => new Google_Service_Walletobjects_LocalizedString([
-        'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+      'header' => new LocalizedString([
+        'defaultValue' => new TranslatedString([
           'language' => 'en-US',
           'value' => 'Generic header'
         ])
       ]),
       'hexBackgroundColor' => '#4285f4',
-      'logo' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'logo' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Generic card logo'
           ])
@@ -385,7 +397,7 @@ class DemoGeneric
     }
 
     // Update the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
@@ -393,7 +405,7 @@ class DemoGeneric
     $linksModuleData = $updatedObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -441,17 +453,17 @@ class DemoGeneric
     }
 
     // Patch the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
 
-    $patchBody = new Google_Service_Walletobjects_GenericObject();
+    $patchBody = new GenericObject();
 
     $linksModuleData = $existingObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -502,7 +514,7 @@ class DemoGeneric
     }
 
     // Patch the object, setting the pass as expired
-    $patchBody = new Google_Service_Walletobjects_GenericObject([
+    $patchBody = new GenericObject([
       'state' => 'EXPIRED'
     ]);
 
@@ -534,42 +546,42 @@ class DemoGeneric
   {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/generic/rest/v1/genericclass
-    $newClass = new Google_Service_Walletobjects_GenericClass([
+    $newClass = new GenericClass([
       'id' => "{$issuerId}.{$classSuffix}",
     ]);
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/generic/rest/v1/genericobject
-    $newObject = new Google_Service_Walletobjects_GenericObject([
+    $newObject = new GenericObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -577,13 +589,13 @@ class DemoGeneric
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -592,29 +604,29 @@ class DemoGeneric
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
-      'cardTitle' => new Google_Service_Walletobjects_LocalizedString([
-        'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+      'cardTitle' => new LocalizedString([
+        'defaultValue' => new TranslatedString([
           'language' => 'en-US',
           'value' => 'Generic card title'
         ])
       ]),
-      'header' => new Google_Service_Walletobjects_LocalizedString([
-        'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+      'header' => new LocalizedString([
+        'defaultValue' => new TranslatedString([
           'language' => 'en-US',
           'value' => 'Generic header'
         ])
       ]),
       'hexBackgroundColor' => '#4285f4',
-      'logo' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'logo' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Generic card logo'
           ])
@@ -782,36 +794,36 @@ class DemoGeneric
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/generic/rest/v1/genericobject
-      $batchObject = new Google_Service_Walletobjects_GenericObject([
+      $batchObject = new GenericObject([
         'id' => "{$issuerId}.{$objectSuffix}",
         'classId' => "{$issuerId}.{$classSuffix}",
         'state' => 'ACTIVE',
-        'heroImage' => new Google_Service_Walletobjects_Image([
-          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        'heroImage' => new Image([
+          'sourceUri' => new ImageUri([
             'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
           ]),
-          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'contentDescription' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Hero image description'
             ])
           ])
         ]),
         'textModulesData' => [
-          new Google_Service_Walletobjects_TextModuleData([
+          new TextModuleData([
             'header' => 'Text module header',
             'body' => 'Text module body',
             'id' => 'TEXT_MODULE_ID'
           ])
         ],
-        'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'linksModuleData' => new LinksModuleData([
           'uris' => [
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'http://maps.google.com/',
               'description' => 'Link module URI description',
               'id' => 'LINK_MODULE_URI_ID'
             ]),
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'tel:6505555555',
               'description' => 'Link module tel description',
               'id' => 'LINK_MODULE_TEL_ID'
@@ -819,13 +831,13 @@ class DemoGeneric
           ]
         ]),
         'imageModulesData' => [
-          new Google_Service_Walletobjects_ImageModuleData([
-            'mainImage' => new Google_Service_Walletobjects_Image([
-              'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          new ImageModuleData([
+            'mainImage' => new Image([
+              'sourceUri' => new ImageUri([
                 'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
               ]),
-              'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-                'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+              'contentDescription' => new LocalizedString([
+                'defaultValue' => new TranslatedString([
                   'language' => 'en-US',
                   'value' => 'Image module description'
                 ])
@@ -834,29 +846,29 @@ class DemoGeneric
             'id' => 'IMAGE_MODULE_ID'
           ])
         ],
-        'barcode' => new Google_Service_Walletobjects_Barcode([
+        'barcode' => new Barcode([
           'type' => 'QR_CODE',
           'value' => 'QR code value'
         ]),
-        'cardTitle' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'cardTitle' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Generic card title'
           ])
         ]),
-        'header' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'header' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Generic header'
           ])
         ]),
         'hexBackgroundColor' => '#4285f4',
-        'logo' => new Google_Service_Walletobjects_Image([
-          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        'logo' => new Image([
+          'sourceUri' => new ImageUri([
             'uri' => 'https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg'
           ]),
-          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'contentDescription' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Generic card logo'
             ])

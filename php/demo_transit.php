@@ -17,20 +17,38 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-// Download the PHP client library from the following URL
-// https://developers.google.com/wallet/generic/resources/libraries
-require __DIR__ . '/lib/Walletobjects.php';
-
 // [START setup]
 // [START imports]
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
-use Google\Client as Google_Client;
+use Google\Client as GoogleClient;
+use Google\Service\Walletobjects;
+use Google\Service\Walletobjects\TicketLeg;
+use Google\Service\Walletobjects\LatLongPoint;
+use Google\Service\Walletobjects\Barcode;
+use Google\Service\Walletobjects\ImageModuleData;
+use Google\Service\Walletobjects\LinksModuleData;
+use Google\Service\Walletobjects\TextModuleData;
+use Google\Service\Walletobjects\TransitObject;
+use Google\Service\Walletobjects\Message;
+use Google\Service\Walletobjects\AddMessageRequest;
+use Google\Service\Walletobjects\Uri;
+use Google\Service\Walletobjects\TranslatedString;
+use Google\Service\Walletobjects\LocalizedString;
+use Google\Service\Walletobjects\ImageUri;
+use Google\Service\Walletobjects\Image;
+use Google\Service\Walletobjects\TransitClass;
 // [END imports]
 
 /** Demo class for creating and managing Transit passes in Google Wallet. */
 class DemoTransit
 {
+  /**
+   * The Google API Client
+   * https://github.com/google/google-api-php-client
+   */
+  public GoogleClient $client;
+
   /**
    * Path to service account key file from Google Cloud Console. Environment
    * variable: GOOGLE_APPLICATION_CREDENTIALS.
@@ -45,7 +63,7 @@ class DemoTransit
   /**
    * Google Wallet service client.
    */
-  public Google_Service_Walletobjects $service;
+  public Walletobjects $service;
 
   public function __construct()
   {
@@ -61,20 +79,18 @@ class DemoTransit
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
-    $this->client = new Google_Client();
+    $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
-    $this->service = new Google_Service_Walletobjects($this->client);
+    $this->service = new Walletobjects($this->client);
   }
   // [END auth]
 
@@ -105,16 +121,16 @@ class DemoTransit
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitclass
-    $newClass = new Google_Service_Walletobjects_TransitClass([
+    $newClass = new TransitClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW',
-      'logo' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'logo' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://live.staticflickr.com/65535/48690277162_cd05f03f4d_o.png'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Logo description'
           ])
@@ -161,7 +177,7 @@ class DemoTransit
     }
 
     // Update the class by adding a homepage
-    $updatedClass->setHomepageUri(new Google_Service_Walletobjects_Uri([
+    $updatedClass->setHomepageUri(new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'Homepage description'
     ]));
@@ -207,8 +223,8 @@ class DemoTransit
     }
 
     // Patch the class by adding a homepage
-    $patchBody = new Google_Service_Walletobjects_TransitClass([
-      'homepageUri' => new Google_Service_Walletobjects_Uri([
+    $patchBody = new TransitClass([
+      'homepageUri' => new Uri([
         'uri' => 'https://developers.google.com/wallet',
         'description' => 'Homepage description'
       ]),
@@ -254,8 +270,8 @@ class DemoTransit
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -298,36 +314,36 @@ class DemoTransit
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-    $newObject = new Google_Service_Walletobjects_TransitObject([
+    $newObject = new TransitObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -335,13 +351,13 @@ class DemoTransit
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -350,12 +366,12 @@ class DemoTransit
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
@@ -363,25 +379,25 @@ class DemoTransit
       'passengerType' => 'SINGLE_PASSENGER',
       'passengerNames' => 'Passenger names',
       'tripType' => 'ONE_WAY',
-      'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
+      'ticketLeg' => new TicketLeg([
         'originStationCode' => 'LA',
-        'originName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'originName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Origin name'
           ])
         ]),
         'destinationStationCode' => 'SFO',
-        'destinationName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'destinationName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Destination name'
           ])
         ]),
         'departureDateTime' => '2020-04-12T16:20:50.52Z',
         'arrivalDateTime' => '2020-04-12T20:20:50.52Z',
-        'fareName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'fareName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Fare name'
           ])
@@ -426,7 +442,7 @@ class DemoTransit
     }
 
     // Update the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
@@ -434,7 +450,7 @@ class DemoTransit
     $linksModuleData = $updatedObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -482,17 +498,17 @@ class DemoTransit
     }
 
     // Patch the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
 
-    $patchBody = new Google_Service_Walletobjects_TransitObject();
+    $patchBody = new TransitObject();
 
     $linksModuleData = $existingObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -543,7 +559,7 @@ class DemoTransit
     }
 
     // Patch the object, setting the pass as expired
-    $patchBody = new Google_Service_Walletobjects_TransitObject([
+    $patchBody = new TransitObject([
       'state' => 'EXPIRED'
     ]);
 
@@ -583,8 +599,8 @@ class DemoTransit
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -618,16 +634,16 @@ class DemoTransit
   {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitclass
-    $newClass = new Google_Service_Walletobjects_TransitClass([
+    $newClass = new TransitClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW',
-      'logo' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'logo' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://live.staticflickr.com/65535/48690277162_cd05f03f4d_o.png'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Logo description'
           ])
@@ -638,36 +654,36 @@ class DemoTransit
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-    $newObject = new Google_Service_Walletobjects_TransitObject([
+    $newObject = new TransitObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -675,13 +691,13 @@ class DemoTransit
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -690,12 +706,12 @@ class DemoTransit
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
@@ -703,25 +719,25 @@ class DemoTransit
       'passengerType' => 'SINGLE_PASSENGER',
       'passengerNames' => 'Passenger names',
       'tripType' => 'ONE_WAY',
-      'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
+      'ticketLeg' => new TicketLeg([
         'originStationCode' => 'LA',
-        'originName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'originName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Origin name'
           ])
         ]),
         'destinationStationCode' => 'SFO',
-        'destinationName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'destinationName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Destination name'
           ])
         ]),
         'departureDateTime' => '2020-04-12T16:20:50.52Z',
         'arrivalDateTime' => '2020-04-12T20:20:50.52Z',
-        'fareName' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'fareName' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Fare name'
           ])
@@ -889,36 +905,36 @@ class DemoTransit
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/tickets/transit-passes/qr-code/rest/v1/transitobject
-      $batchObject = new Google_Service_Walletobjects_TransitObject([
+      $batchObject = new TransitObject([
         'id' => "{$issuerId}.{$objectSuffix}",
         'classId' => "{$issuerId}.{$classSuffix}",
         'state' => 'ACTIVE',
-        'heroImage' => new Google_Service_Walletobjects_Image([
-          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        'heroImage' => new Image([
+          'sourceUri' => new ImageUri([
             'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
           ]),
-          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'contentDescription' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Hero image description'
             ])
           ])
         ]),
         'textModulesData' => [
-          new Google_Service_Walletobjects_TextModuleData([
+          new TextModuleData([
             'header' => 'Text module header',
             'body' => 'Text module body',
             'id' => 'TEXT_MODULE_ID'
           ])
         ],
-        'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'linksModuleData' => new LinksModuleData([
           'uris' => [
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'http://maps.google.com/',
               'description' => 'Link module URI description',
               'id' => 'LINK_MODULE_URI_ID'
             ]),
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'tel:6505555555',
               'description' => 'Link module tel description',
               'id' => 'LINK_MODULE_TEL_ID'
@@ -926,13 +942,13 @@ class DemoTransit
           ]
         ]),
         'imageModulesData' => [
-          new Google_Service_Walletobjects_ImageModuleData([
-            'mainImage' => new Google_Service_Walletobjects_Image([
-              'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          new ImageModuleData([
+            'mainImage' => new Image([
+              'sourceUri' => new ImageUri([
                 'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
               ]),
-              'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-                'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+              'contentDescription' => new LocalizedString([
+                'defaultValue' => new TranslatedString([
                   'language' => 'en-US',
                   'value' => 'Image module description'
                 ])
@@ -941,12 +957,12 @@ class DemoTransit
             'id' => 'IMAGE_MODULE_ID'
           ])
         ],
-        'barcode' => new Google_Service_Walletobjects_Barcode([
+        'barcode' => new Barcode([
           'type' => 'QR_CODE',
           'value' => 'QR code value'
         ]),
         'locations' => [
-          new Google_Service_Walletobjects_LatLongPoint([
+          new LatLongPoint([
             'latitude' => 37.424015499999996,
             'longitude' =>  -122.09259560000001
           ])
@@ -954,25 +970,25 @@ class DemoTransit
         'passengerType' => 'SINGLE_PASSENGER',
         'passengerNames' => 'Passenger names',
         'tripType' => 'ONE_WAY',
-        'ticketLeg' => new Google_Service_Walletobjects_TicketLeg([
+        'ticketLeg' => new TicketLeg([
           'originStationCode' => 'LA',
-          'originName' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'originName' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Origin name'
             ])
           ]),
           'destinationStationCode' => 'SFO',
-          'destinationName' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'destinationName' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Destination name'
             ])
           ]),
           'departureDateTime' => '2020-04-12T16:20:50.52Z',
           'arrivalDateTime' => '2020-04-12T20:20:50.52Z',
-          'fareName' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'fareName' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Fare name'
             ])

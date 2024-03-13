@@ -22,8 +22,6 @@ creating a pass class, updating issuer permissions, and more.
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
     to create the Google Wallet issuer account and Google Cloud service account
-*   Download the C#
-    [Google Wallet API Client library](https://developers.google.com/wallet/generic/resources/libraries#c)
 
 ## Environment variables
 
