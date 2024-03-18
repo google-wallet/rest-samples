@@ -23,8 +23,6 @@ creating a pass class, updating issuer permissions, and more.
 *   Follow the steps outlined in the
     [Google Wallet prerequisites](https://developers.google.com/wallet/generic/web/prerequisites)
     to create the Google Wallet issuer account and Google Cloud service account
-*   Download the Java
-    [Google Wallet API Client library](https://developers.google.com/wallet/generic/resources/libraries#java)
 
 ## Environment variables
 
@@ -39,16 +37,8 @@ for each class file.
 ## How to use the code samples
 
 1.  Open the [`java`](./java/) project folder in your editor of choice.
-2.  Copy the path to the Google Wallet API Client library (
-    `libwalletobjects_public_java_lib_v1.jar` file) you downloaded. If needed,
-    update the path in [`build.gradle`](./build.gradle) (line 14).
-
-    ```plain
-    implementation files('lib/libwalletobjects_public_java_lib_v1.jar')
-    ```
-
-3.  Build the project to install the dependencies.
-4.  In your Java code, import a demo class and call its method(s). An example
+2.  Build the project to install the dependencies.
+3.  In your Java code, import a demo class and call its method(s). An example
     can be found below
 
     ```java

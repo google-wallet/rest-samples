@@ -2,6 +2,15 @@
   "require": {
     "google/auth": "^1.18",
     "guzzlehttp/guzzle": "*",
-    "google/apiclient": "^2.12"
+    "google/apiclient": "^2.15",
+    "google/apiclient-services": "~0.300"
+  },
+  "scripts": {
+    "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
+  },
+  "extra": {
+    "google/apiclient-services": [
+      "Walletobjects"
+    ]
   }
 }

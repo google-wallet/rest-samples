@@ -17,20 +17,39 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-// Download the PHP client library from the following URL
-// https://developers.google.com/wallet/generic/resources/libraries
-require __DIR__ . '/lib/Walletobjects.php';
-
 // [START setup]
 // [START imports]
 use Firebase\JWT\JWT;
 use Google\Auth\Credentials\ServiceAccountCredentials;
-use Google\Client as Google_Client;
+use Google\Client as GoogleClient;
+use Google\Service\Walletobjects;
+use Google\Service\Walletobjects\DateTime;
+use Google\Service\Walletobjects\Money;
+use Google\Service\Walletobjects\LatLongPoint;
+use Google\Service\Walletobjects\Barcode;
+use Google\Service\Walletobjects\ImageModuleData;
+use Google\Service\Walletobjects\LinksModuleData;
+use Google\Service\Walletobjects\TextModuleData;
+use Google\Service\Walletobjects\TranslatedString;
+use Google\Service\Walletobjects\LocalizedString;
+use Google\Service\Walletobjects\ImageUri;
+use Google\Service\Walletobjects\Image;
+use Google\Service\Walletobjects\GiftCardObject;
+use Google\Service\Walletobjects\Message;
+use Google\Service\Walletobjects\AddMessageRequest;
+use Google\Service\Walletobjects\Uri;
+use Google\Service\Walletobjects\GiftCardClass;
 // [END imports]
 
 /** Demo class for creating and managing Gift cards in Google Wallet. */
 class DemoGiftCard
 {
+  /**
+   * The Google API Client
+   * https://github.com/google/google-api-php-client
+   */
+  public GoogleClient $client;
+
   /**
    * Path to service account key file from Google Cloud Console. Environment
    * variable: GOOGLE_APPLICATION_CREDENTIALS.
@@ -45,7 +64,7 @@ class DemoGiftCard
   /**
    * Google Wallet service client.
    */
-  public Google_Service_Walletobjects $service;
+  public Walletobjects $service;
 
   public function __construct()
   {
@@ -61,20 +80,18 @@ class DemoGiftCard
    */
   public function auth()
   {
-    $scope = 'https://www.googleapis.com/auth/wallet_object.issuer';
-
     $this->credentials = new ServiceAccountCredentials(
-      $scope,
+      Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
 
     // Initialize Google Wallet API service
-    $this->client = new Google_Client();
+    $this->client = new GoogleClient();
     $this->client->setApplicationName('APPLICATION_NAME');
-    $this->client->setScopes($scope);
+    $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
     $this->client->setAuthConfig($this->keyFilePath);
 
-    $this->service = new Google_Service_Walletobjects($this->client);
+    $this->service = new Walletobjects($this->client);
   }
   // [END auth]
 
@@ -91,7 +108,7 @@ class DemoGiftCard
   {
     // Check if the class exists
     try {
-      $this->service->eventticketclass->get("{$issuerId}.{$classSuffix}");
+      $this->service->giftcardclass->get("{$issuerId}.{$classSuffix}");
 
       print("Class {$issuerId}.{$classSuffix} already exists!");
       return "{$issuerId}.{$classSuffix}";
@@ -105,7 +122,7 @@ class DemoGiftCard
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/gift-cards/rest/v1/giftcardclass
-    $newClass = new Google_Service_Walletobjects_GiftCardClass([
+    $newClass = new GiftCardClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW'
@@ -149,7 +166,7 @@ class DemoGiftCard
     }
 
     // Update the class by adding a homepage
-    $updatedClass->setHomepageUri(new Google_Service_Walletobjects_Uri([
+    $updatedClass->setHomepageUri(new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'Homepage description'
     ]));
@@ -195,8 +212,8 @@ class DemoGiftCard
     }
 
     // Patch the class by adding a homepage
-    $patchBody = new Google_Service_Walletobjects_GiftCardClass([
-      'homepageUri' => new Google_Service_Walletobjects_Uri([
+    $patchBody = new GiftCardClass([
+      'homepageUri' => new Uri([
         'uri' => 'https://developers.google.com/wallet',
         'description' => 'Homepage description'
       ]),
@@ -242,8 +259,8 @@ class DemoGiftCard
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -286,36 +303,36 @@ class DemoGiftCard
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/gift-cards/rest/v1/giftcardobject
-    $newObject = new Google_Service_Walletobjects_GiftCardObject([
+    $newObject = new GiftCardObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -323,13 +340,13 @@ class DemoGiftCard
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -338,23 +355,23 @@ class DemoGiftCard
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
       ],
       'cardNumber' => 'Card number',
       'pin' => '1234',
-      'balance' => new Google_Service_Walletobjects_Money([
+      'balance' => new Money([
         'micros' => 20000000,
         'currencyCode' => 'USD'
       ]),
-      'balanceUpdateTime' => new Google_Service_Walletobjects_DateTime([
+      'balanceUpdateTime' => new DateTime([
         'date' => '2020-04-12T16:20:50.52-04:00'
       ])
     ]);
@@ -396,7 +413,7 @@ class DemoGiftCard
     }
 
     // Update the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
@@ -404,7 +421,7 @@ class DemoGiftCard
     $linksModuleData = $updatedObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -452,17 +469,17 @@ class DemoGiftCard
     }
 
     // Patch the object by adding a link
-    $newLink = new Google_Service_Walletobjects_Uri([
+    $newLink = new Uri([
       'uri' => 'https://developers.google.com/wallet',
       'description' => 'New link description'
     ]);
 
-    $patchBody = new Google_Service_Walletobjects_GiftCardObject();
+    $patchBody = new GiftCardObject();
 
     $linksModuleData = $existingObject->getLinksModuleData();
     if (is_null($linksModuleData)) {
       // LinksModuleData was not set on the original object
-      $linksModuleData = new Google_Service_Walletobjects_LinksModuleData([
+      $linksModuleData = new LinksModuleData([
         'uris' => []
       ]);
     }
@@ -513,7 +530,7 @@ class DemoGiftCard
     }
 
     // Patch the object, setting the pass as expired
-    $patchBody = new Google_Service_Walletobjects_GiftCardObject([
+    $patchBody = new GiftCardObject([
       'state' => 'EXPIRED'
     ]);
 
@@ -553,8 +570,8 @@ class DemoGiftCard
       }
     }
 
-    $message = new Google_Service_Walletobjects_AddMessageRequest([
-      'message' => new Google_Service_Walletobjects_Message([
+    $message = new AddMessageRequest([
+      'message' => new Message([
         'header' => $header,
         'body' => $body
       ])
@@ -588,7 +605,7 @@ class DemoGiftCard
   {
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/gift-cards/rest/v1/giftcardclass
-    $newClass = new Google_Service_Walletobjects_GiftCardClass([
+    $newClass = new GiftCardClass([
       'id' => "{$issuerId}.{$classSuffix}",
       'issuerName' => 'Issuer name',
       'reviewStatus' => 'UNDER_REVIEW'
@@ -596,36 +613,36 @@ class DemoGiftCard
 
     // See link below for more information on required properties
     // https://developers.google.com/wallet/retail/gift-cards/rest/v1/giftcardobject
-    $newObject = new Google_Service_Walletobjects_GiftCardObject([
+    $newObject = new GiftCardObject([
       'id' => "{$issuerId}.{$objectSuffix}",
       'classId' => "{$issuerId}.{$classSuffix}",
       'state' => 'ACTIVE',
-      'heroImage' => new Google_Service_Walletobjects_Image([
-        'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+      'heroImage' => new Image([
+        'sourceUri' => new ImageUri([
           'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
         ]),
-        'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-          'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+        'contentDescription' => new LocalizedString([
+          'defaultValue' => new TranslatedString([
             'language' => 'en-US',
             'value' => 'Hero image description'
           ])
         ])
       ]),
       'textModulesData' => [
-        new Google_Service_Walletobjects_TextModuleData([
+        new TextModuleData([
           'header' => 'Text module header',
           'body' => 'Text module body',
           'id' => 'TEXT_MODULE_ID'
         ])
       ],
-      'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+      'linksModuleData' => new LinksModuleData([
         'uris' => [
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'http://maps.google.com/',
             'description' => 'Link module URI description',
             'id' => 'LINK_MODULE_URI_ID'
           ]),
-          new Google_Service_Walletobjects_Uri([
+          new Uri([
             'uri' => 'tel:6505555555',
             'description' => 'Link module tel description',
             'id' => 'LINK_MODULE_TEL_ID'
@@ -633,13 +650,13 @@ class DemoGiftCard
         ]
       ]),
       'imageModulesData' => [
-        new Google_Service_Walletobjects_ImageModuleData([
-          'mainImage' => new Google_Service_Walletobjects_Image([
-            'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        new ImageModuleData([
+          'mainImage' => new Image([
+            'sourceUri' => new ImageUri([
               'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
             ]),
-            'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-              'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+            'contentDescription' => new LocalizedString([
+              'defaultValue' => new TranslatedString([
                 'language' => 'en-US',
                 'value' => 'Image module description'
               ])
@@ -648,23 +665,23 @@ class DemoGiftCard
           'id' => 'IMAGE_MODULE_ID'
         ])
       ],
-      'barcode' => new Google_Service_Walletobjects_Barcode([
+      'barcode' => new Barcode([
         'type' => 'QR_CODE',
         'value' => 'QR code value'
       ]),
       'locations' => [
-        new Google_Service_Walletobjects_LatLongPoint([
+        new LatLongPoint([
           'latitude' => 37.424015499999996,
           'longitude' =>  -122.09259560000001
         ])
       ],
       'cardNumber' => 'Card number',
       'pin' => '1234',
-      'balance' => new Google_Service_Walletobjects_Money([
+      'balance' => new Money([
         'micros' => 20000000,
         'currencyCode' => 'USD'
       ]),
-      'balanceUpdateTime' => new Google_Service_Walletobjects_DateTime([
+      'balanceUpdateTime' => new DateTime([
         'date' => '2020-04-12T16:20:50.52-04:00'
       ])
     ]);
@@ -829,36 +846,36 @@ class DemoGiftCard
 
       // See link below for more information on required properties
       // https://developers.google.com/wallet/retail/gift-cards/rest/v1/giftcardobject
-      $batchObject = new Google_Service_Walletobjects_GiftCardObject([
+      $batchObject = new GiftCardObject([
         'id' => "{$issuerId}.{$objectSuffix}",
         'classId' => "{$issuerId}.{$classSuffix}",
         'state' => 'ACTIVE',
-        'heroImage' => new Google_Service_Walletobjects_Image([
-          'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+        'heroImage' => new Image([
+          'sourceUri' => new ImageUri([
             'uri' => 'https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg'
           ]),
-          'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-            'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+          'contentDescription' => new LocalizedString([
+            'defaultValue' => new TranslatedString([
               'language' => 'en-US',
               'value' => 'Hero image description'
             ])
           ])
         ]),
         'textModulesData' => [
-          new Google_Service_Walletobjects_TextModuleData([
+          new TextModuleData([
             'header' => 'Text module header',
             'body' => 'Text module body',
             'id' => 'TEXT_MODULE_ID'
           ])
         ],
-        'linksModuleData' => new Google_Service_Walletobjects_LinksModuleData([
+        'linksModuleData' => new LinksModuleData([
           'uris' => [
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'http://maps.google.com/',
               'description' => 'Link module URI description',
               'id' => 'LINK_MODULE_URI_ID'
             ]),
-            new Google_Service_Walletobjects_Uri([
+            new Uri([
               'uri' => 'tel:6505555555',
               'description' => 'Link module tel description',
               'id' => 'LINK_MODULE_TEL_ID'
@@ -866,13 +883,13 @@ class DemoGiftCard
           ]
         ]),
         'imageModulesData' => [
-          new Google_Service_Walletobjects_ImageModuleData([
-            'mainImage' => new Google_Service_Walletobjects_Image([
-              'sourceUri' => new Google_Service_Walletobjects_ImageUri([
+          new ImageModuleData([
+            'mainImage' => new Image([
+              'sourceUri' => new ImageUri([
                 'uri' => 'http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg'
               ]),
-              'contentDescription' => new Google_Service_Walletobjects_LocalizedString([
-                'defaultValue' => new Google_Service_Walletobjects_TranslatedString([
+              'contentDescription' => new LocalizedString([
+                'defaultValue' => new TranslatedString([
                   'language' => 'en-US',
                   'value' => 'Image module description'
                 ])
@@ -881,23 +898,23 @@ class DemoGiftCard
             'id' => 'IMAGE_MODULE_ID'
           ])
         ],
-        'barcode' => new Google_Service_Walletobjects_Barcode([
+        'barcode' => new Barcode([
           'type' => 'QR_CODE',
           'value' => 'QR code value'
         ]),
         'locations' => [
-          new Google_Service_Walletobjects_LatLongPoint([
+          new LatLongPoint([
             'latitude' => 37.424015499999996,
             'longitude' =>  -122.09259560000001
           ])
         ],
         'cardNumber' => 'Card number',
         'pin' => '1234',
-        'balance' => new Google_Service_Walletobjects_Money([
+        'balance' => new Money([
           'micros' => 20000000,
           'currencyCode' => 'USD'
         ]),
-        'balanceUpdateTime' => new Google_Service_Walletobjects_DateTime([
+        'balanceUpdateTime' => new DateTime([
           'date' => '2020-04-12T16:20:50.52-04:00'
         ])
       ]);

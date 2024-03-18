@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
@@ -27,35 +28,34 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthJwt "golang.org/x/oauth2/jwt"
+	"google.golang.org/api/option"
+	"google.golang.org/api/walletobjects/v1"
 	"io"
-	"net/http"
+	"log"
 	"os"
 	"strings"
 )
 
 // [END imports]
-
-const (
-	batchUrl  = "https://walletobjects.googleapis.com/batch"
-	classUrl  = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardClass"
-	objectUrl = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardObject"
-)
-
 // [END setup]
 
 type demoGiftcard struct {
-	credentials                   *oauthJwt.Config
-	httpClient                    *http.Client
-	batchUrl, classUrl, objectUrl string
+	credentials *oauthJwt.Config
+	service     *walletobjects.Service
 }
 
 // [START auth]
 // Create authenticated HTTP client using a service account file.
 func (d *demoGiftcard) auth() {
-	b, _ := os.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	credentials, _ := google.JWTConfigFromJSON(b, "https://www.googleapis.com/auth/wallet_object.issuer")
+	credentialsFile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	b, _ := os.ReadFile(credentialsFile)
+	credentials, err := google.JWTConfigFromJSON(b, walletobjects.WalletObjectIssuerScope)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatalf("Unable to load credentials: %v", err)
+	}
 	d.credentials = credentials
-	d.httpClient = d.credentials.Client(oauth2.NoContext)
+	d.service, _ = walletobjects.NewService(context.Background(), option.WithCredentialsFile(credentialsFile))
 }
 
 // [END auth]
@@ -63,21 +63,15 @@ func (d *demoGiftcard) auth() {
 // [START createClass]
 // Create a class.
 func (d *demoGiftcard) createClass(issuerId, classSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"issuerName": "Issuer name",
-		"id": "%s.%s",
-		"reviewStatus": "UNDER_REVIEW"
-	}
-	`, issuerId, classSuffix)
-
-	res, err := d.httpClient.Post(classUrl, "application/json", bytes.NewBuffer([]byte(newClass)))
-
+	giftcardClass := new(walletobjects.GiftCardClass)
+	giftcardClass.Id = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	giftcardClass.IssuerName = "Issuer name"
+	giftcardClass.ReviewStatus = "UNDER_REVIEW"
+	res, err := d.service.Giftcardclass.Insert(giftcardClass).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert class: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Class insert response:\n%s\n", b)
+		fmt.Printf("Class insert id:\n%v\n", res.Id)
 	}
 }
 
@@ -86,88 +80,71 @@ func (d *demoGiftcard) createClass(issuerId, classSuffix string) {
 // [START createObject]
 // Create an object.
 func (d *demoGiftcard) createObject(issuerId, classSuffix, objectSuffix string) {
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"pin": "1234",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"balanceUpdateTime": {
-			"date": "2020-04-12T16:20:50.52-04:00"
-		},
-		"state": "ACTIVE",
-		"cardNumber": "Card number",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"balance": {
-			"micros": 20000000,
-			"currencyCode": "USD"
-		},
-		"id": "%s.%s"
+	giftcardObject := new(walletobjects.GiftCardObject)
+	giftcardObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	giftcardObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	giftcardObject.State = "ACTIVE"
+	giftcardObject.CardNumber = "Card number"
+	giftcardObject.Pin = "1234"
+	giftcardObject.Balance = &walletobjects.Money{
+		Micros:       20000000,
+		CurrencyCode: "USD",
 	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
+	giftcardObject.BalanceUpdateTime = &walletobjects.DateTime{
+		Date: "2023-12-12T23:20:50.52Z",
+	}
+	giftcardObject.HeroImage = &walletobjects.Image{
+		SourceUri: &walletobjects.ImageUri{
+			Uri: "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg",
+		},
+	}
+	giftcardObject.Barcode = &walletobjects.Barcode{
+		Type:  "QR_CODE",
+		Value: "QR code",
+	}
+	giftcardObject.Locations = []*walletobjects.LatLongPoint{
+		&walletobjects.LatLongPoint{
+			Latitude:  37.424015499999996,
+			Longitude: -122.09259560000001,
+		},
+	}
+	giftcardObject.LinksModuleData = &walletobjects.LinksModuleData{
+		Uris: []*walletobjects.Uri{
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_URI_ID",
+				Uri:         "http://maps.google.com/",
+				Description: "Link module URI description",
+			},
+			&walletobjects.Uri{
+				Id:          "LINK_MODULE_TEL_ID",
+				Uri:         "tel:6505555555",
+				Description: "Link module tel description",
+			},
+		},
+	}
+	giftcardObject.ImageModulesData = []*walletobjects.ImageModuleData{
+		&walletobjects.ImageModuleData{
+			Id: "IMAGE_MODULE_ID",
+			MainImage: &walletobjects.Image{
+				SourceUri: &walletobjects.ImageUri{
+					Uri: "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg",
+				},
+			},
+		},
+	}
+	giftcardObject.TextModulesData = []*walletobjects.TextModuleData{
+		&walletobjects.TextModuleData{
+			Body:   "Text module body",
+			Header: "Text module header",
+			Id:     "TEXT_MODULE_ID",
+		},
+	}
 
-	res, err := d.httpClient.Post(objectUrl, "application/json", bytes.NewBuffer([]byte(newObject)))
-
+	res, err := d.service.Giftcardobject.Insert(giftcardObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to insert object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object insert response:\n%s\n", b)
+		fmt.Printf("Object insert id:\n%s\n", res.Id)
 	}
 }
 
@@ -179,16 +156,14 @@ func (d *demoGiftcard) createObject(issuerId, classSuffix, objectSuffix string) 
 // Sets the object's state to Expired. If the valid time interval is
 // already set, the pass will expire automatically up to 24 hours after.
 func (d *demoGiftcard) expireObject(issuerId, objectSuffix string) {
-	patchBody := `{"state": "EXPIRED"}`
-	url := fmt.Sprintf("%s/%s.%s", objectUrl, issuerId, objectSuffix)
-	req, _ := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer([]byte(patchBody)))
-	res, err := d.httpClient.Do(req)
-
+	giftcardObject := &walletobjects.GiftCardObject{
+		State: "EXPIRED",
+	}
+	res, err := d.service.Giftcardobject.Patch(fmt.Sprintf("%s.%s", issuerId, objectSuffix), giftcardObject).Do()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Unable to patch object: %v", err)
 	} else {
-		b, _ := io.ReadAll(res.Body)
-		fmt.Printf("Object expiration response:\n%s\n", b)
+		fmt.Printf("Object expiration id:\n%s\n", res.Id)
 	}
 }
 
@@ -202,97 +177,19 @@ func (d *demoGiftcard) expireObject(issuerId, objectSuffix string) {
 // created. This allows you to create multiple pass classes and objects in
 // one API call when the user saves the pass to their wallet.
 func (d *demoGiftcard) createJwtNewObjects(issuerId, classSuffix, objectSuffix string) {
-	newClass := fmt.Sprintf(`
-	{
-		"issuerName": "Issuer name",
-		"id": "%s.%s",
-		"reviewStatus": "UNDER_REVIEW"
-	}
-	`, issuerId, classSuffix)
+	giftcardObject := new(walletobjects.GiftCardObject)
+	giftcardObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+	giftcardObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+	giftcardObject.State = "ACTIVE"
+	giftcardObject.CardNumber = "Card number"
 
-	newObject := fmt.Sprintf(`
-	{
-		"classId": "%s.%s",
-		"pin": "1234",
-		"heroImage": {
-			"contentDescription": {
-				"defaultValue": {
-					"value": "Hero image description",
-					"language": "en-US"
-				}
-			},
-			"sourceUri": {
-				"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-			}
-		},
-		"barcode": {
-			"type": "QR_CODE",
-			"value": "QR code"
-		},
-		"locations": [
-			{
-				"latitude": 37.424015499999996,
-				"longitude": -122.09259560000001
-			}
-		],
-		"balanceUpdateTime": {
-			"date": "2020-04-12T16:20:50.52-04:00"
-		},
-		"state": "ACTIVE",
-		"cardNumber": "Card number",
-		"linksModuleData": {
-			"uris": [
-				{
-					"id": "LINK_MODULE_URI_ID",
-					"uri": "http://maps.google.com/",
-					"description": "Link module URI description"
-				},
-				{
-					"id": "LINK_MODULE_TEL_ID",
-					"uri": "tel:6505555555",
-					"description": "Link module tel description"
-				}
-			]
-		},
-		"imageModulesData": [
-			{
-				"id": "IMAGE_MODULE_ID",
-				"mainImage": {
-					"contentDescription": {
-						"defaultValue": {
-							"value": "Image module description",
-							"language": "en-US"
-						}
-					},
-					"sourceUri": {
-						"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-					}
-				}
-			}
-		],
-		"textModulesData": [
-			{
-				"body": "Text module body",
-				"header": "Text module header",
-				"id": "TEXT_MODULE_ID"
-			}
-		],
-		"balance": {
-			"micros": 20000000,
-			"currencyCode": "USD"
-		},
-		"id": "%s.%s"
-	}
-	`, issuerId, classSuffix, issuerId, objectSuffix)
-
-	var payload map[string]interface{}
+	giftcardJson, _ := json.Marshal(giftcardObject)
+	var payload map[string]any
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
-		"genericClasses": [%s],
-		"genericObjects": [%s]
+		"giftcardObjects": [%s]
 	}
-	`, newClass, newObject)), &payload)
-
+	`, giftcardJson)), &payload)
 	claims := jwt.MapClaims{
 		"iss":     d.credentials.Email,
 		"aud":     "google",
@@ -318,7 +215,7 @@ func (d *demoGiftcard) createJwtNewObjects(issuerId, classSuffix, objectSuffix s
 // their wallet, the pass objects defined in the JWT are added to the
 // user's Google Wallet app. This allows the user to save multiple pass
 // objects in one API call.
-func (d *demoGiftcard) createJwtExistingObjects(issuerId string) {
+func (d *demoGiftcard) createJwtExistingObjects(issuerId string, classSuffix string, objectSuffix string) {
 	var payload map[string]interface{}
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
@@ -347,7 +244,7 @@ func (d *demoGiftcard) createJwtExistingObjects(issuerId string) {
 			"classId": "%s.LOYALTY_CLASS_SUFFIX"
 		}],
 
-		"offerObjects": [{
+		"giftcardObjects": [{
 			"id": "%s.OFFER_OBJECT_SUFFIX",
 			"classId": "%s.OFFER_CLASS_SUFFIX"
 		}],
@@ -384,80 +281,14 @@ func (d *demoGiftcard) batchCreateObjects(issuerId, classSuffix string) {
 	for i := 0; i < 3; i++ {
 		objectSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 
-		batchObject := fmt.Sprintf(`
-		{
-			"classId": "%s.%s",
-			"pin": "1234",
-			"heroImage": {
-				"contentDescription": {
-					"defaultValue": {
-						"value": "Hero image description",
-						"language": "en-US"
-					}
-				},
-				"sourceUri": {
-					"uri": "https://farm4.staticflickr.com/3723/11177041115_6e6a3b6f49_o.jpg"
-				}
-			},
-			"barcode": {
-				"type": "QR_CODE",
-				"value": "QR code"
-			},
-			"locations": [
-				{
-					"latitude": 37.424015499999996,
-					"longitude": -122.09259560000001
-				}
-			],
-			"balanceUpdateTime": {
-				"date": "2020-04-12T16:20:50.52-04:00"
-			},
-			"state": "ACTIVE",
-			"cardNumber": "Card number",
-			"linksModuleData": {
-				"uris": [
-					{
-						"id": "LINK_MODULE_URI_ID",
-						"uri": "http://maps.google.com/",
-						"description": "Link module URI description"
-					},
-					{
-						"id": "LINK_MODULE_TEL_ID",
-						"uri": "tel:6505555555",
-						"description": "Link module tel description"
-					}
-				]
-			},
-			"imageModulesData": [
-				{
-					"id": "IMAGE_MODULE_ID",
-					"mainImage": {
-						"contentDescription": {
-							"defaultValue": {
-								"value": "Image module description",
-								"language": "en-US"
-							}
-						},
-						"sourceUri": {
-							"uri": "http://farm4.staticflickr.com/3738/12440799783_3dc3c20606_b.jpg"
-						}
-					}
-				}
-			],
-			"textModulesData": [
-				{
-					"body": "Text module body",
-					"header": "Text module header",
-					"id": "TEXT_MODULE_ID"
-				}
-			],
-			"balance": {
-				"micros": 20000000,
-				"currencyCode": "USD"
-			},
-			"id": "%s.%s"
-		}
-		`, issuerId, classSuffix, issuerId, objectSuffix)
+		giftcardObject := new(walletobjects.GiftCardObject)
+		giftcardObject.Id = fmt.Sprintf("%s.%s", issuerId, objectSuffix)
+		giftcardObject.ClassId = fmt.Sprintf("%s.%s", issuerId, classSuffix)
+		giftcardObject.State = "ACTIVE"
+		giftcardObject.CardNumber = "Card number"
+
+		giftcardJson, _ := json.Marshal(giftcardObject)
+		batchObject := fmt.Sprintf("%s", giftcardJson)
 
 		data += "--batch_createobjectbatch\n"
 		data += "Content-Type: application/json\n\n"
@@ -466,8 +297,7 @@ func (d *demoGiftcard) batchCreateObjects(issuerId, classSuffix string) {
 	}
 	data += "--batch_createobjectbatch--"
 
-	// batchUrl = 'https://walletobjects.googleapis.com/batch';
-	res, err := d.httpClient.Post(batchUrl, "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
+	res, err := d.credentials.Client(oauth2.NoContext).Post("https://walletobjects.googleapis.com/batch", "multipart/mixed; boundary=batch_createobjectbatch", bytes.NewBuffer([]byte(data)))
 
 	if err != nil {
 		fmt.Println(err)
@@ -480,11 +310,6 @@ func (d *demoGiftcard) batchCreateObjects(issuerId, classSuffix string) {
 // [END batch]
 
 func main() {
-	if len(os.Args) == 0 {
-		fmt.Println("Usage: go run demo_giftcard.go <issuer-id>")
-		os.Exit(1)
-	}
-
 	issuerId := os.Getenv("WALLET_ISSUER_ID")
 	classSuffix := strings.ReplaceAll(uuid.New().String(), "-", "_")
 	objectSuffix := fmt.Sprintf("%s-%s", strings.ReplaceAll(uuid.New().String(), "-", "_"), classSuffix)
@@ -496,6 +321,6 @@ func main() {
 	d.createObject(issuerId, classSuffix, objectSuffix)
 	d.expireObject(issuerId, objectSuffix)
 	d.createJwtNewObjects(issuerId, classSuffix, objectSuffix)
-	d.createJwtExistingObjects(issuerId)
+	d.createJwtExistingObjects(issuerId, classSuffix, objectSuffix)
 	d.batchCreateObjects(issuerId, classSuffix)
 }

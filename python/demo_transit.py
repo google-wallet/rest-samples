@@ -21,7 +21,9 @@ import json
 import os
 import uuid
 
-from google.auth.transport.requests import AuthorizedSession
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import BatchHttpRequest
 from google.oauth2.service_account import Credentials
 from google.auth import jwt, crypt
 # [END imports]
@@ -39,11 +41,6 @@ class DemoTransit:
     def __init__(self):
         self.key_file_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS',
                                             '/path/to/key.json')
-        self.base_url = 'https://walletobjects.googleapis.com/walletobjects/v1'
-        self.batch_url = 'https://walletobjects.googleapis.com/batch'
-        self.class_url = f'{self.base_url}/transitClass'
-        self.object_url = f'{self.base_url}/transitObject'
-
         # Set up authenticated client
         self.auth()
 
@@ -56,7 +53,7 @@ class DemoTransit:
             self.key_file_path,
             scopes=['https://www.googleapis.com/auth/wallet_object.issuer'])
 
-        self.http_client = AuthorizedSession(self.credentials)
+        self.client = build('walletobjects', 'v1', credentials=self.credentials)
 
     # [END auth]
 
@@ -73,15 +70,15 @@ class DemoTransit:
         """
 
         # Check if the class exists
-        response = self.http_client.get(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}')
-
-        if response.status_code == 200:
+        try:
+            self.client.transitclass().get(resourceId=f'{issuer_id}.{class_suffix}').execute()
+        except HttpError as e:
+            if e.status_code != 404:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{class_suffix}'
+        else:
             print(f'Class {issuer_id}.{class_suffix} already exists!')
-            return f'{issuer_id}.{class_suffix}'
-        elif response.status_code != 404:
-            # Something else went wrong...
-            print(response.text)
             return f'{issuer_id}.{class_suffix}'
 
         # See link below for more information on required properties
@@ -105,12 +102,12 @@ class DemoTransit:
             'transitType': 'BUS'
         }
 
-        response = self.http_client.post(url=self.class_url, json=new_class)
+        response = self.client.transitclass().insert(body=new_class).execute()
 
         print('Class insert response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{class_suffix}'
 
     # [END createClass]
 
@@ -129,19 +126,19 @@ class DemoTransit:
         """
 
         # Check if the class exists
-        response = self.http_client.get(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}')
-
-        if response.status_code == 404:
-            print(f'Class {issuer_id}.{class_suffix} not found!')
-            return f'{issuer_id}.{class_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{class_suffix}'
+        try:
+            response = self.client.transitclass().get(resourceId=f'{issuer_id}.{class_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Class {issuer_id}.{class_suffix} not found!')
+                return f'{issuer_id}.{class_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{class_suffix}'
 
         # Class exists
-        updated_class = response.json()
+        updated_class = response
 
         # Update the class by adding a homepage
         updated_class['homepageUri'] = {
@@ -152,14 +149,14 @@ class DemoTransit:
         # Note: reviewStatus must be 'UNDER_REVIEW' or 'DRAFT' for updates
         updated_class['reviewStatus'] = 'UNDER_REVIEW'
 
-        response = self.http_client.put(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}',
-            json=updated_class)
+        response = self.client.transitclass().update(
+            resourceId=f'{issuer_id}.{class_suffix}',
+            body=updated_class).execute()
 
         print('Class update response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{class_suffix}'
 
     # [END updateClass]
 
@@ -178,16 +175,16 @@ class DemoTransit:
         """
 
         # Check if the class exists
-        response = self.http_client.get(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}')
-
-        if response.status_code == 404:
-            print(f'Class {issuer_id}.{class_suffix} not found!')
-            return f'{issuer_id}.{class_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{class_suffix}'
+        try:
+            response = self.client.transitclass().get(resourceId=f'{issuer_id}.{class_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Class {issuer_id}.{class_suffix} not found!')
+                return f'{issuer_id}.{class_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{class_suffix}'
 
         # Patch the class by adding a homepage
         patch_body = {
@@ -200,13 +197,14 @@ class DemoTransit:
             'reviewStatus': 'UNDER_REVIEW'
         }
 
-        response = self.http_client.patch(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}', json=patch_body)
+        response = self.client.transitclass().patch(
+            resourceId=f'{issuer_id}.{class_suffix}',
+            body=patch_body).execute()
 
         print('Class patch response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{class_suffix}'
 
     # [END patchClass]
 
@@ -226,28 +224,28 @@ class DemoTransit:
         """
 
         # Check if the class exists
-        response = self.http_client.get(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}')
+        try:
+            response = self.client.transitclass().get(resourceId=f'{issuer_id}.{class_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Class {issuer_id}.{class_suffix} not found!')
+                return f'{issuer_id}.{class_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{class_suffix}'
 
-        if response.status_code == 404:
-            print(f'Class {issuer_id}.{class_suffix} not found!')
-            return f'{issuer_id}.{class_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{class_suffix}'
-
-        response = self.http_client.post(
-            url=f'{self.class_url}/{issuer_id}.{class_suffix}/addMessage',
-            json={'message': {
+        response = self.client.transitclass().addmessage(
+            resourceId=f'{issuer_id}.{class_suffix}',
+            body={'message': {
                 'header': header,
                 'body': body
-            }})
+            }}).execute()
 
         print('Class addMessage response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{class_suffix}'
 
     # [END addMessageClass]
 
@@ -266,16 +264,15 @@ class DemoTransit:
         """
 
         # Check if the object exists
-        response = self.http_client.get(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}')
-
-        if response.status_code == 200:
+        try:
+            self.client.transitobject().get(resourceId=f'{issuer_id}.{object_suffix}').execute()
+        except HttpError as e:
+            if e.status_code != 404:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{object_suffix}'
+        else:
             print(f'Object {issuer_id}.{object_suffix} already exists!')
-            print(response.text)
-            return f'{issuer_id}.{object_suffix}'
-        elif response.status_code != 404:
-            # Something else went wrong...
-            print(response.text)
             return f'{issuer_id}.{object_suffix}'
 
         # See link below for more information on required properties
@@ -365,12 +362,12 @@ class DemoTransit:
         }
 
         # Create the object
-        response = self.http_client.post(url=self.object_url, json=new_object)
+        response = self.client.transitobject().insert(body=new_object).execute()
 
         print('Object insert response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{object_suffix}'
 
     # [END createObject]
 
@@ -389,19 +386,19 @@ class DemoTransit:
         """
 
         # Check if the object exists
-        response = self.http_client.get(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}')
-
-        if response.status_code == 404:
-            print(f'Object {issuer_id}.{object_suffix} not found!')
-            return f'{issuer_id}.{object_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{object_suffix}'
+        try:
+            response = self.client.transitobject().get(resourceId=f'{issuer_id}.{object_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Object {issuer_id}.{object_suffix} not found!')
+                return f'{issuer_id}.{object_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{object_suffix}'
 
         # Object exists
-        updated_object = response.json()
+        updated_object = response
 
         # Update the object by adding a link
         new_link = {
@@ -412,14 +409,14 @@ class DemoTransit:
             updated_object['linksModuleData'] = {'uris': []}
         updated_object['linksModuleData']['uris'].append(new_link)
 
-        response = self.http_client.put(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}',
-            json=updated_object)
+        response = self.client.transitobject().update(
+            resourceId=f'{issuer_id}.{object_suffix}',
+            body=updated_object).execute()
 
         print('Object update response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{object_suffix}'
 
     # [END updateObject]
 
@@ -436,19 +433,19 @@ class DemoTransit:
         """
 
         # Check if the object exists
-        response = self.http_client.get(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}')
-
-        if response.status_code == 404:
-            print(f'Object {issuer_id}.{object_suffix} not found!')
-            return f'{issuer_id}.{object_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{object_suffix}'
+        try:
+            response = self.client.transitobject().get(resourceId=f'{issuer_id}.{object_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Object {issuer_id}.{object_suffix} not found!')
+                return f'{issuer_id}.{object_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{object_suffix}'
 
         # Object exists
-        existing_object = response.json()
+        existing_object = response
 
         # Patch the object by adding a link
         patch_body = {}
@@ -463,14 +460,14 @@ class DemoTransit:
             patch_body['linksModuleData'] = {'uris': []}
         patch_body['linksModuleData']['uris'].append(new_link)
 
-        response = self.http_client.patch(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}',
-            json=patch_body)
+        response = self.client.transitobject().patch(
+            resourceId=f'{issuer_id}.{object_suffix}',
+            body=patch_body).execute()
 
         print('Object patch response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{object_suffix}'
 
     # [END patchObject]
 
@@ -490,28 +487,28 @@ class DemoTransit:
         """
 
         # Check if the object exists
-        response = self.http_client.get(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}')
-
-        if response.status_code == 404:
-            print(f'Object {issuer_id}.{object_suffix} not found!')
-            return f'{issuer_id}.{object_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{object_suffix}'
+        try:
+            response = self.client.transitobject().get(resourceId=f'{issuer_id}.{object_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Object {issuer_id}.{object_suffix} not found!')
+                return f'{issuer_id}.{object_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{object_suffix}'
 
         # Patch the object, setting the pass as expired
         patch_body = {'state': 'EXPIRED'}
 
-        response = self.http_client.patch(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}',
-            json=patch_body)
+        response = self.client.transitobject().patch(
+            resourceId=f'{issuer_id}.{object_suffix}',
+            body=patch_body).execute()
 
         print('Object expiration response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{object_suffix}'
 
     # [END expireObject]
 
@@ -531,28 +528,28 @@ class DemoTransit:
         """
 
         # Check if the object exists
-        response = self.http_client.get(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}')
+        try:
+            response = self.client.transitobject().get(resourceId=f'{issuer_id}.{object_suffix}').execute()
+        except HttpError as e:
+            if e.status_code == 404:
+                print(f'Object {issuer_id}.{object_suffix} not found!')
+                return f'{issuer_id}.{object_suffix}'
+            else:
+                # Something else went wrong...
+                print(e.error_details)
+                return f'{issuer_id}.{object_suffix}'
 
-        if response.status_code == 404:
-            print(f'Object {issuer_id}.{object_suffix} not found!')
-            return f'{issuer_id}.{object_suffix}'
-        elif response.status_code != 200:
-            # Something else went wrong...
-            print(response.text)
-            return f'{issuer_id}.{object_suffix}'
-
-        response = self.http_client.post(
-            url=f'{self.object_url}/{issuer_id}.{object_suffix}/addMessage',
-            json={'message': {
+        response = self.client.transitobject().addmessage(
+            resourceId=f'{issuer_id}.{object_suffix}',
+            body={'message': {
                 'header': header,
                 'body': body
-            }})
+            }}).execute()
 
         print('Object addMessage response')
-        print(response.text)
+        print(response)
 
-        return response.json().get('id')
+        return f'{issuer_id}.{object_suffix}'
 
     # [END addMessageObject]
 
@@ -808,7 +805,7 @@ class DemoTransit:
             issuer_id (str): The issuer ID being used for this request.
             class_suffix (str): Developer-defined unique ID for this pass class.
         """
-        data = ''
+        batch = self.client.new_batch_http_request()
 
         # Example: Generate three new pass objects
         for _ in range(3):
@@ -901,25 +898,11 @@ class DemoTransit:
                 }
             }
 
-            data += '--batch_createobjectbatch\n'
-            data += 'Content-Type: application/json\n\n'
-            data += 'POST /walletobjects/v1/transitObject/\n\n'
-
-            data += json.dumps(batch_object) + '\n\n'
-
-        data += '--batch_createobjectbatch--'
+            batch.add(self.client.transitobject().insert(body=batch_object))
 
         # Invoke the batch API calls
-        response = self.http_client.post(
-            url=self.batch_url, # https://walletobjects.googleapis.com/batch
-            data=data,
-            headers={
-                # `boundary` is the delimiter between API calls in the batch request
-                'Content-Type':
-                    'multipart/mixed; boundary=batch_createobjectbatch'
-            })
+        response = batch.execute()
 
-        print('Batch insert response')
-        print(response.content.decode('UTF-8'))
+        print('Batch complete')
 
     # [END batch]
