@@ -1,6 +1,6 @@
 {
   "require": {
-    "google/auth": "^1.18",
+    "google/auth": "^1.42.0",
     "guzzlehttp/guzzle": "*",
     "google/apiclient": "^2.15",
     "google/apiclient-services": "~0.300"
