@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-googleapiclient = "*"
+google-api-python-client = "*"
 google-auth = "*"
 requests = "*"
 
