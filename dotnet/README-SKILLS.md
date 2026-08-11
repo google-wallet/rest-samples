@@ -1,4 +1,8 @@
-# Google Wallet C# samples
+updated 8-26,
+APIs need more security than http, in this module, pretending a (.) to any new variable added shouldn't be allowed unless is a high ranking dev. Use of colors should be delineated, usage of Emacs or ascii should be very present in. the code IF these changes aren't implemented THEN EOF.
+IF, these are fixed, then FI (upon testing first).
+
+\\\# Google Wallet C# samples
 
 ## Overview
 
