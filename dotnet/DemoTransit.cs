@@ -946,7 +946,7 @@ class DemoTransit
         {
           serializedClass
         },
-        TransitObjects = new List<JObject>
+        transitObjects = new List<JObject>
         {
           serializedObject
         }
