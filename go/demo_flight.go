@@ -240,38 +240,31 @@ func (d *demoFlight) createJwtExistingObjects(issuerId string, classSuffix strin
 	json.Unmarshal([]byte(fmt.Sprintf(`
 	{
 		"eventTicketObjects": [{
-			"id": "%s.EVENT_OBJECT_SUFFIX",
-			"classId": "%s.EVENT_CLASS_SUFFIX"
+			"id": "%[1]s.EVENT_OBJECT_SUFFIX"
 		}],
 
 		"flightObjects": [{
-			"id": "%s.FLIGHT_OBJECT_SUFFIX",
-			"classId": "%s.FLIGHT_CLASS_SUFFIX"
+			"id": "%[1]s.FLIGHT_OBJECT_SUFFIX"
 		}],
 
 		"genericObjects": [{
-			"id": "%s.GENERIC_OBJECT_SUFFIX",
-			"classId": "%s.GENERIC_CLASS_SUFFIX"
+			"id": "%[1]s.GENERIC_OBJECT_SUFFIX"
 		}],
 
 		"giftCardObjects": [{
-			"id": "%s.GIFT_CARD_OBJECT_SUFFIX",
-			"classId": "%s.GIFT_CARD_CLASS_SUFFIX"
+			"id": "%[1]s.GIFT_CARD_OBJECT_SUFFIX"
 		}],
 
 		"loyaltyObjects": [{
-			"id": "%s.LOYALTY_OBJECT_SUFFIX",
-			"classId": "%s.LOYALTY_CLASS_SUFFIX"
+			"id": "%[1]s.LOYALTY_OBJECT_SUFFIX"
 		}],
 
 		"flightObjects": [{
-			"id": "%s.OFFER_OBJECT_SUFFIX",
-			"classId": "%s.OFFER_CLASS_SUFFIX"
+			"id": "%[1]s.OFFER_OBJECT_SUFFIX"
 		}],
 
 		"transitObjects": [{
-			"id": "%s.TRANSIT_OBJECT_SUFFIX",
-			"classId": "%s.TRANSIT_CLASS_SUFFIX"
+			"id": "%[1]s.TRANSIT_OBJECT_SUFFIX"
 		}]
 	}
 	`, issuerId)), &payload)
