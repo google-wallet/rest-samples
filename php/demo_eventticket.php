@@ -83,12 +83,12 @@ class DemoEventTicket
       Walletobjects::WALLET_OBJECT_ISSUER,
       $this->keyFilePath
     );
+    $this->credentials->useJwtAccessWithScope();
 
     // Initialize Google Wallet API service
-    $this->client = new GoogleClient();
+    $this->client = new GoogleClient(['credentials' => $this->credentials]);
     $this->client->setApplicationName('APPLICATION_NAME');
     $this->client->setScopes(Walletobjects::WALLET_OBJECT_ISSUER);
-    $this->client->setAuthConfig($this->keyFilePath);
 
     $this->service = new Walletobjects($this->client);
   }
@@ -851,12 +851,9 @@ class DemoEventTicket
       ]
     ];
 
-    // The service account credentials are used to sign the JWT
-    $serviceAccount = json_decode(file_get_contents($this->keyFilePath), true);
-
     // Create the JWT as an array of key/value pairs
     $claims = [
-      'iss' => $serviceAccount['client_email'],
+      'iss' => $this->credentials->getClientName(),
       'aud' => 'google',
       'origins' => ['www.example.com'],
       'typ' => 'savetowallet',
@@ -865,7 +862,7 @@ class DemoEventTicket
 
     $token = JWT::encode(
       $claims,
-      $serviceAccount['private_key'],
+      $this->credentials->getPrivateKey(),
       'RS256'
     );
 
