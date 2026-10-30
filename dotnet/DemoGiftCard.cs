@@ -904,7 +904,7 @@ class DemoGiftCard
   /// <para />
   /// The objects to add must follow the below format:
   /// <para />
-  /// { 'id': 'ISSUER_ID.OBJECT_SUFFIX', 'classId': 'ISSUER_ID.CLASS_SUFFIX' }
+  /// { 'id': 'ISSUER_ID.OBJECT_SUFFIX' }
   /// <para />
   /// The Google Wallet C# library uses Newtonsoft.Json.JsonPropertyAttribute
   /// to specify the property names when converting objects to JSON. The
@@ -931,8 +931,7 @@ class DemoGiftCard
     {
       new EventTicketObject
       {
-        Id = $"{issuerId}.EVENT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.EVENT_CLASS_SUFFIX"
+        Id = $"{issuerId}.EVENT_OBJECT_SUFFIX"
       }
     });
 
@@ -941,8 +940,7 @@ class DemoGiftCard
     {
       new FlightObject
       {
-        Id = $"{issuerId}.FLIGHT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.FLIGHT_CLASS_SUFFIX"
+        Id = $"{issuerId}.FLIGHT_OBJECT_SUFFIX"
       }
     });
 
@@ -951,8 +949,7 @@ class DemoGiftCard
     {
       new GenericObject
       {
-        Id = $"{issuerId}.GENERIC_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.GENERIC_CLASS_SUFFIX"
+        Id = $"{issuerId}.GENERIC_OBJECT_SUFFIX"
       }
     });
 
@@ -961,8 +958,7 @@ class DemoGiftCard
     {
       new GiftCardObject
       {
-        Id = $"{issuerId}.GIFT_CARD_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.GIFT_CARD_CLASS_SUFFIX"
+        Id = $"{issuerId}.GIFT_CARD_OBJECT_SUFFIX"
       }
     });
 
@@ -971,8 +967,7 @@ class DemoGiftCard
     {
       new LoyaltyObject
       {
-        Id = $"{issuerId}.LOYALTY_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.LOYALTY_CLASS_SUFFIX"
+        Id = $"{issuerId}.LOYALTY_OBJECT_SUFFIX"
       }
     });
 
@@ -981,8 +976,7 @@ class DemoGiftCard
     {
       new OfferObject
       {
-        Id = $"{issuerId}.OFFER_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.OFFER_CLASS_SUFFIX"
+        Id = $"{issuerId}.OFFER_OBJECT_SUFFIX"
       }
     });
 
@@ -991,8 +985,7 @@ class DemoGiftCard
     {
       new TransitObject
       {
-        Id = $"{issuerId}.TRANSIT_OBJECT_SUFFIX",
-        ClassId = $"{issuerId}.TRANSIT_CLASS_SUFFIX"
+        Id = $"{issuerId}.TRANSIT_OBJECT_SUFFIX"
       }
     });
 

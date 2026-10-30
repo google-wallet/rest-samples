@@ -630,7 +630,7 @@ public class DemoGeneric {
    *
    * <p>The objects to add must follow the below format:
    *
-   * <p>{ 'id': 'ISSUER_ID.OBJECT_SUFFIX', 'classId': 'ISSUER_ID.CLASS_SUFFIX' }
+   * <p>{ 'id': 'ISSUER_ID.OBJECT_SUFFIX' }
    *
    * @param issuerId The issuer ID being used for this request.
    * @return An "Add to Google Wallet" link.
@@ -646,56 +646,49 @@ public class DemoGeneric {
         "eventTicketObjects",
             List.of(
                     new EventTicketObject()
-                            .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "EVENT_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "EVENT_OBJECT_SUFFIX"))));
 
     // Boarding passes
     objectsToAdd.put(
         "flightObjects",
             List.of(
                     new FlightObject()
-                            .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "FLIGHT_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "FLIGHT_OBJECT_SUFFIX"))));
 
     // Generic passes
     objectsToAdd.put(
         "genericObjects",
             List.of(
                     new GenericObject()
-                            .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "GENERIC_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "GENERIC_OBJECT_SUFFIX"))));
 
     // Gift cards
     objectsToAdd.put(
         "giftCardObjects",
             List.of(
                     new GiftCardObject()
-                            .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "GIFT_CARD_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "GIFT_CARD_OBJECT_SUFFIX"))));
 
     // Loyalty cards
     objectsToAdd.put(
         "loyaltyObjects",
             List.of(
                     new LoyaltyObject()
-                            .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "LOYALTY_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "LOYALTY_OBJECT_SUFFIX"))));
 
     // Offers
     objectsToAdd.put(
         "offerObjects",
             List.of(
                     new OfferObject()
-                            .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "OFFER_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "OFFER_OBJECT_SUFFIX"))));
 
     // Transit passes
     objectsToAdd.put(
         "transitObjects",
             List.of(
                     new TransitObject()
-                            .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))
-                            .setClassId(String.format("%s.%s", issuerId, "TRANSIT_CLASS_SUFFIX"))));
+                            .setId(String.format("%s.%s", issuerId, "TRANSIT_OBJECT_SUFFIX"))));
 
     // Create the JWT as a HashMap object
     HashMap<String, Object> claims = new HashMap<String, Object>();
